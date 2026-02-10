@@ -1,50 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Pixel Roguelike</title>
-  <link rel="stylesheet" href="style.css" />
-  <style>
-    body {
-      margin: 0;
-      background: #07010f;
-      color: #ddd;
-      font-family: monospace;
-      display: flex;
-      gap: 12px;
-      padding: 12px;
-    }
-    canvas {
-      border: 3px solid #3a1f5c;
-      image-rendering: pixelated;
-    }
-    #ui {
-      width: 220px;
-    }
-    button {
-      display: block;
-      width: 100%;
-      margin: 4px 0;
-      background: #2a0f44;
-      color: #fff;
-      border: 1px solid #5f2b8a;
-      cursor: pointer;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div id="ui">
+    <h1>🗡 Pixel Roguelike</h1>
+    <div id="stats"></div>
+    <div id="log"></div>
+  </div>
 
   <canvas id="game"></canvas>
 
-  <div id="ui">
-    <div id="stats"></div>
-    <div id="skills"></div>
-    <p>
-      Arrows = Move<br>
-      F = Fire<br>
-      S = Save<br>
-      L = Load
-    </p>
+  <div id="controls">
+    <button onclick="saveGame()">💾 Save</button>
+    <button onclick="loadGame()">📂 Load</button>
   </div>
 
   <script src="script.js"></script>
