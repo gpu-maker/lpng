@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
   <title>Pixel Roguelike</title>
@@ -7,17 +7,19 @@
 </head>
 <body>
 
-<div id="topbar">
-  <button onclick="toggleSkills()">🧠 Skills (K)</button>
-  <button onclick="restartGame()">🔄 Restart</button>
-</div>
+<div id="layout">
+  <div id="sidebar">
+    <h3>🎮 Controls</h3>
+    <div class="ctrl">Move: Arrow Keys</div>
+    <div class="ctrl">Skills: K</div>
+    <div class="ctrl">Restart: R</div>
 
-<div id="ui">
-  <div id="stats"></div>
-  <div id="log"></div>
-</div>
+    <h3>🗺 Minimap</h3>
+    <canvas id="minimap"></canvas>
+  </div>
 
-<canvas id="game"></canvas>
+  <canvas id="game"></canvas>
+</div>
 
 <div id="skills" class="hidden"></div>
 
