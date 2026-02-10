@@ -1,26 +1,33 @@
-/* ======================
+/* ==================================================
    CONFIG
-====================== */
+================================================== */
 const TILE = 16;
-const WORLD = 100;
 const VIEW = 20;
+const WORLD = 100;
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 canvas.width = VIEW * TILE;
 canvas.height = VIEW * TILE;
 
-/* ======================
+const mini = document.getElementById("minimap");
+const mctx = mini.getContext("2d");
+mini.width = WORLD;
+mini.height = WORLD;
+
+/* ==================================================
    GAME STATE
-====================== */
-let gameOver = false;
+================================================== */
+let dead = false;
 let skillMenu = false;
-let skillPoints = 3;
+let skillPoints = 5;
 
 const player = {
-  x: 50, y: 50,
-  hp: 100, maxHp: 100,
-  mana: 40,
+  x: 50,
+  y: 50,
+  hp: 100,
+  maxHp: 100,
+  dir: 0,
   skills: {
     melee: 1,
     magic: 1,
@@ -30,59 +37,69 @@ const player = {
 };
 
 let enemies = [];
-let dungeon = [];
-let visible = [];
-let log = [];
+let explored = Array.from({ length: WORLD }, () =>
+  Array(WORLD).fill(false)
+);
 
-/* ======================
-   PIXEL ICONS
-====================== */
-const icons = {
-  player: ["010","111","101"],
-  enemy: ["111","101","111"],
-  boss: ["1111","1001","1001","1111"]
-};
+/* ==================================================
+   SPRITES (PIXEL KNIGHT + ENEMIES)
+================================================== */
+const knightSprites = [
+  [
+    "00100",
+    "01110",
+    "10101",
+    "01110",
+    "01010"
+  ],
+  [
+    "00100",
+    "01110",
+    "10101",
+    "01110",
+    "10101"
+  ]
+];
 
-function drawIcon(icon, x, y, color) {
+const enemySprite = [
+  "0110",
+  "1111",
+  "1011",
+  "1111"
+];
+
+/* ==================================================
+   SPRITE DRAWER
+================================================== */
+function drawSprite(sprite, x, y, color, scale) {
   ctx.fillStyle = color;
-  icon.forEach((row, j) => {
+  sprite.forEach((row, j) => {
     [...row].forEach((p, i) => {
-      if (p === "1")
+      if (p === "1") {
         ctx.fillRect(
-          x + i * (TILE / icon.length),
-          y + j * (TILE / icon.length),
-          TILE / icon.length,
-          TILE / icon.length
+          x + i * scale,
+          y + j * scale,
+          scale,
+          scale
         );
+      }
     });
   });
 }
 
-/* ======================
-   WORLD GEN
-====================== */
-function generateWorld() {
-  dungeon = Array.from({ length: WORLD }, () =>
-    Array(WORLD).fill(0)
-  );
-
-  enemies = [];
-  for (let i = 0; i < 50; i++) {
-    enemies.push({
-      x: rand(0, WORLD),
-      y: rand(0, WORLD),
-      hp: 20
-    });
-  }
-}
-
-/* ======================
+/* ==================================================
    INPUT
-====================== */
+================================================== */
 window.addEventListener("keydown", e => {
-  if (gameOver) return;
+  if (dead) {
+    if (e.key.toLowerCase() === "r") restartGame();
+    return;
+  }
 
-  if (e.key === "k") toggleSkills();
+  if (e.key.toLowerCase() === "k") {
+    toggleSkills();
+    return;
+  }
 
   if (skillMenu) return;
 
@@ -94,44 +111,44 @@ window.addEventListener("keydown", e => {
   }[e.key];
 
   if (d) {
-    player.x += d[0];
-    player.y += d[1];
+    player.x = clamp(player.x + d[0], 0, WORLD - 1);
+    player.y = clamp(player.y + d[1], 0, WORLD - 1);
     enemyTurn();
   }
 });
 
-/* ======================
-   AI + COMBAT
-====================== */
+/* ==================================================
+   ENEMY AI + COMBAT
+================================================== */
 function enemyTurn() {
   enemies.forEach(e => {
-    if (Math.abs(player.x - e.x) <= 1 &&
-        Math.abs(player.y - e.y) <= 1) {
-      player.hp -= 5;
-      addLog("💥 Hit!");
+    const dx = player.x - e.x;
+    const dy = player.y - e.y;
+
+    if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1) {
+      player.hp -= 8;
     } else {
-      e.x += Math.sign(player.x - e.x);
-      e.y += Math.sign(player.y - e.y);
+      e.x += Math.sign(dx);
+      e.y += Math.sign(dy);
     }
   });
 
   if (player.hp <= 0) {
-    gameOver = true;
+    dead = true;
     canvas.classList.add("dead");
-    addLog("☠ You died");
   }
 }
 
-/* ======================
+/* ==================================================
    SKILLS
-====================== */
+================================================== */
 function toggleSkills() {
   skillMenu = !skillMenu;
   document.getElementById("skills").classList.toggle("hidden");
   renderSkills();
 }
 
-function upgrade(skill) {
+function upgradeSkill(skill) {
   if (skillPoints <= 0) return;
   player.skills[skill]++;
   skillPoints--;
@@ -143,21 +160,48 @@ function renderSkills() {
   s.innerHTML = `
     <b>Skill Points: ${skillPoints}</b><br><br>
     Melee (${player.skills.melee})
-    <button onclick="upgrade('melee')">+</button><br>
+    <button onclick="upgradeSkill('melee')">+</button><br>
     Magic (${player.skills.magic})
-    <button onclick="upgrade('magic')">+</button><br>
+    <button onclick="upgradeSkill('magic')">+</button><br>
     Ranged (${player.skills.ranged})
-    <button onclick="upgrade('ranged')">+</button><br>
+    <button onclick="upgradeSkill('ranged')">+</button><br>
     Stealth (${player.skills.stealth})
-    <button onclick="upgrade('stealth')">+</button>
+    <button onclick="upgradeSkill('stealth')">+</button>
   `;
 }
 
-/* ======================
+/* ==================================================
+   MINIMAP
+================================================== */
+function drawMinimap() {
+  explored[player.y][player.x] = true;
+
+  for (let y = 0; y < WORLD; y++) {
+    for (let x = 0; x < WORLD; x++) {
+      if (explored[y][x]) {
+        mctx.fillStyle = "#333";
+        mctx.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+
+  enemies.forEach(e => {
+    mctx.fillStyle = "#f44";
+    mctx.fillRect(e.x, e.y, 1, 1);
+  });
+
+  mctx.fillStyle = "#4f4";
+  mctx.fillRect(player.x, player.y, 1, 1);
+}
+
+/* ==================================================
    RENDER
-====================== */
+================================================== */
+let frame = 0;
+let tick = 0;
+
 function draw() {
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const ox = player.x - VIEW / 2;
   const oy = player.y - VIEW / 2;
@@ -165,54 +209,62 @@ function draw() {
   for (let y = 0; y < VIEW; y++) {
     for (let x = 0; x < VIEW; x++) {
       ctx.fillStyle = "#222";
-      ctx.fillRect(x*TILE, y*TILE, TILE, TILE);
+      ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
     }
   }
 
   enemies.forEach(e => {
-    drawIcon(
-      icons.enemy,
+    drawSprite(
+      enemySprite,
       (e.x - ox) * TILE,
       (e.y - oy) * TILE,
-      "#f55"
+      "#f55",
+      4
     );
   });
 
-  drawIcon(
-    icons.player,
+  drawSprite(
+    knightSprites[frame],
     (player.x - ox) * TILE,
     (player.y - oy) * TILE,
-    "#5f5"
+    "#6f6",
+    3
   );
 
-  document.getElementById("stats").innerHTML =
-    `❤️ ${player.hp} | 🧠 ${skillPoints}`;
+  drawMinimap();
 }
 
-/* ======================
-   UTIL
-====================== */
-function rand(min, max) {
-  return Math.floor(Math.random() * (max - min));
-}
-function addLog(t) {
-  log.push(t);
-  document.getElementById("log").innerHTML =
-    log.slice(-3).join("<br>");
+/* ==================================================
+   UTILS
+================================================== */
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
 }
 
 function restartGame() {
   location.reload();
 }
 
-/* ======================
-   START
-====================== */
-generateWorld();
+/* ==================================================
+   INIT
+================================================== */
+for (let i = 0; i < 40; i++) {
+  enemies.push({
+    x: Math.floor(Math.random() * WORLD),
+    y: Math.floor(Math.random() * WORLD)
+  });
+}
+
 renderSkills();
 
+/* ==================================================
+   LOOP
+================================================== */
 function loop() {
+  tick++;
+  if (tick % 20 === 0) frame = (frame + 1) % 2;
   draw();
   requestAnimationFrame(loop);
 }
+
 loop();
