@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Pixel Roguelike</title>
@@ -7,21 +7,37 @@
 </head>
 <body>
 
-<div id="layout">
-  <div id="sidebar">
-    <h3>🎮 Controls</h3>
-    <div class="ctrl">Move: Arrow Keys</div>
-    <div class="ctrl">Skills: K</div>
-    <div class="ctrl">Restart: R</div>
+<h1>🗡 Pixel Roguelike</h1>
 
-    <h3>🗺 Minimap</h3>
-    <canvas id="minimap"></canvas>
-  </div>
-
-  <canvas id="game"></canvas>
+<div id="ui">
+  <div id="stats"></div>
+  <canvas id="minimap" width="160" height="160"></canvas>
 </div>
 
-<div id="skills" class="hidden"></div>
+<canvas id="game"></canvas>
+
+<div id="controlsHelp">
+  ⬆⬇⬅➡ Move |
+  Z Melee |
+  X Ranged |
+  C Magic |
+  K Skills |
+  Save / Load
+</div>
+
+<div id="buttons">
+  <button onclick="saveGame()">💾 Save</button>
+  <button onclick="loadGame()">📂 Load</button>
+</div>
+
+<div id="skills" class="hidden">
+  <h3>Skill Tree</h3>
+  <button onclick="upgrade('atk')">🗡 Melee</button>
+  <button onclick="upgrade('ranged')">🏹 Ranged</button>
+  <button onclick="upgrade('magic')">🔮 Magic</button>
+  <p id="skillPoints"></p>
+  <button onclick="toggleSkills()">Close</button>
+</div>
 
 <script src="script.js"></script>
 </body>
