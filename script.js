@@ -1,248 +1,247 @@
-/* =====================================================
-   CONFIG
-===================================================== */
+/* ======================
+   CORE CONFIG
+====================== */
 const TILE = 32;
 const GRID = 20;
-
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 canvas.width = GRID * TILE;
 canvas.height = GRID * TILE;
 
-/* =====================================================
-   ASSETS
-===================================================== */
-const sprites = {
-  player: new Image(),
-  enemy: new Image(),
-  boss: new Image()
-};
-sprites.player.src = "assets/player.png";
-sprites.enemy.src = "assets/enemy.png";
-sprites.boss.src = "assets/boss.png";
-
-/* =====================================================
-   AUDIO
-===================================================== */
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-function playSound(freq = 300, dur = 0.12) {
-  const o = audioCtx.createOscillator();
-  const g = audioCtx.createGain();
-  o.connect(g);
-  g.connect(audioCtx.destination);
-  o.frequency.value = freq;
-  g.gain.value = 0.08;
-  o.start();
-  o.stop(audioCtx.currentTime + dur);
-}
-
-/* =====================================================
-   PLAYER
-===================================================== */
-const player = {
-  x: 0, y: 0,
-  hp: 100, maxHp: 100,
-  mana: 50, maxMana: 50,
-  dir: 1,
-  frame: 0,
-  tick: 0,
-  skillPoints: 0
-};
-
-/* =====================================================
-   MAP + FOG
-===================================================== */
-const WALL = 1, FLOOR = 0;
-let map = [];
-let seen = [];
-let floorLevel = 1;
-
-function emptyMap() {
-  map = Array.from({ length: GRID }, () => Array(GRID).fill(WALL));
-  seen = Array.from({ length: GRID }, () => Array(GRID).fill(false));
-}
-
-function revealFog() {
-  for (let y = -4; y <= 4; y++)
-    for (let x = -4; x <= 4; x++) {
-      const nx = player.x + x;
-      const ny = player.y + y;
-      if (seen[ny]?.[nx] !== undefined) seen[ny][nx] = true;
-    }
-}
-
-/* =====================================================
-   LIGHTING
-===================================================== */
-function drawLighting() {
-  const g = ctx.createRadialGradient(
-    player.x * TILE + 16,
-    player.y * TILE + 16,
-    32,
-    player.x * TILE + 16,
-    player.y * TILE + 16,
-    260
-  );
-  g.addColorStop(0, "rgba(255,255,255,0.85)");
-  g.addColorStop(1, "rgba(0,0,0,0.95)");
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-}
-
-/* =====================================================
-   ENEMIES
-===================================================== */
-let enemies = [];
-
-function spawnEnemies(rooms) {
-  enemies = rooms.slice(1).map(r => ({
-    x: r.cx,
-    y: r.cy,
-    hp: 30,
-    frame: 0,
-    tick: 0
-  }));
-}
-
-/* =====================================================
-   PROJECTILES
-===================================================== */
+/* ======================
+   GAME STATE
+====================== */
+let floor = 1;
+let dungeon = [];
+let visible = [];
+let entities = [];
 let projectiles = [];
+let log = [];
 
-function fireProjectile(dx, dy) {
-  projectiles.push({ x: player.x, y: player.y, dx, dy });
-  playSound(520);
+const player = {
+  x: 10, y: 10,
+  hp: 100, maxHp: 100,
+  mana: 40, maxMana: 40,
+  atk: 5,
+  ranged: 3,
+  magic: 4,
+  light: 6,
+  skills: {
+    melee: 1,
+    ranged: 1,
+    magic: 1
+  }
+};
+
+/* ======================
+   MAP GENERATION
+====================== */
+function generateFloor() {
+  dungeon = Array.from({ length: GRID }, () =>
+    Array(GRID).fill(1)
+  );
+
+  for (let r = 0; r < 9; r++) {
+    let w = rand(4, 7);
+    let h = rand(4, 7);
+    let x = rand(1, GRID - w - 1);
+    let y = rand(1, GRID - h - 1);
+
+    for (let i = x; i < x + w; i++)
+      for (let j = y; j < y + h; j++)
+        dungeon[j][i] = 0;
+  }
+
+  visible = Array.from({ length: GRID }, () =>
+    Array(GRID).fill(false)
+  );
+
+  spawnEnemies();
 }
 
-/* =====================================================
+/* ======================
+   ENEMIES
+====================== */
+function spawnEnemies() {
+  entities = [];
+
+  for (let i = 0; i < 10 + floor; i++) {
+    entities.push({
+      x: rand(1, GRID - 2),
+      y: rand(1, GRID - 2),
+      hp: 20 + floor * 4,
+      type: "enemy"
+    });
+  }
+
+  if (floor % 3 === 0) {
+    entities.push({
+      x: GRID / 2,
+      y: GRID / 2,
+      hp: 150,
+      type: "boss"
+    });
+  }
+}
+
+/* ======================
+   INPUT
+====================== */
+window.addEventListener("keydown", e => {
+  const dir = {
+    ArrowUp: [0, -1],
+    ArrowDown: [0, 1],
+    ArrowLeft: [-1, 0],
+    ArrowRight: [1, 0]
+  }[e.key];
+
+  if (dir) movePlayer(dir[0], dir[1]);
+  if (e.key === " ") castSpell();
+});
+
+/* ======================
+   PLAYER ACTIONS
+====================== */
+function movePlayer(dx, dy) {
+  let nx = player.x + dx;
+  let ny = player.y + dy;
+
+  if (dungeon[ny]?.[nx] === 0) {
+    player.x = nx;
+    player.y = ny;
+    updateVisibility();
+    enemyTurn();
+  }
+}
+
+function castSpell() {
+  if (player.mana < 5) return;
+  player.mana -= 5;
+
+  projectiles.push({
+    x: player.x,
+    y: player.y,
+    dx: 1,
+    dy: 0,
+    dmg: player.magic * 3
+  });
+
+  addLog("✨ Spell cast!");
+}
+
+/* ======================
+   AI
+====================== */
+function enemyTurn() {
+  for (let e of entities) {
+    let dx = Math.sign(player.x - e.x);
+    let dy = Math.sign(player.y - e.y);
+
+    if (Math.abs(dx) + Math.abs(dy) <= 1) {
+      player.hp -= 5;
+      addLog("💥 You are hit!");
+    } else {
+      e.x += dx;
+      e.y += dy;
+    }
+  }
+}
+
+/* ======================
+   VISIBILITY & LIGHT
+====================== */
+function updateVisibility() {
+  for (let y = 0; y < GRID; y++)
+    for (let x = 0; x < GRID; x++)
+      visible[y][x] =
+        Math.hypot(player.x - x, player.y - y) <= player.light;
+}
+
+/* ======================
+   RENDERING
+====================== */
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      if (!visible[y][x]) {
+        ctx.fillStyle = "#000";
+      } else {
+        ctx.fillStyle = dungeon[y][x] ? "#222" : "#444";
+      }
+      ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+    }
+  }
+
+  // Player
+  ctx.fillStyle = "#0f0";
+  ctx.fillRect(player.x * TILE, player.y * TILE, TILE, TILE);
+
+  // Enemies
+  for (let e of entities) {
+    if (visible[e.y]?.[e.x]) {
+      ctx.fillStyle = e.type === "boss" ? "#f00" : "#f80";
+      ctx.fillRect(e.x * TILE, e.y * TILE, TILE, TILE);
+    }
+  }
+
+  drawUI();
+}
+
+/* ======================
+   UI
+====================== */
+function drawUI() {
+  document.getElementById("stats").innerHTML =
+    `❤️ ${player.hp}/${player.maxHp}
+     🔮 ${player.mana}/${player.maxMana}
+     🧬 Floor ${floor}`;
+
+  document.getElementById("log").innerHTML =
+    log.slice(-3).join("<br>");
+}
+
+/* ======================
    SAVE / LOAD
-===================================================== */
+====================== */
 function saveGame() {
-  localStorage.setItem("roguelikeSave", JSON.stringify({
-    player,
-    map,
-    seen,
-    floorLevel
+  localStorage.setItem("roguelike", JSON.stringify({
+    player, floor
   }));
+  addLog("💾 Game saved");
 }
 
 function loadGame() {
-  const s = JSON.parse(localStorage.getItem("roguelikeSave"));
-  if (!s) return;
-  Object.assign(player, s.player);
-  map = s.map;
-  seen = s.seen;
-  floorLevel = s.floorLevel;
+  let data = JSON.parse(localStorage.getItem("roguelike"));
+  if (!data) return;
+
+  Object.assign(player, data.player);
+  floor = data.floor;
+  generateFloor();
+  addLog("📂 Game loaded");
 }
 
-/* =====================================================
-   FLOOR GENERATION
-===================================================== */
-function generateFloor() {
-  emptyMap();
-  const rooms = [];
-
-  for (let i = 0; i < 9; i++) {
-    const w = 4 + Math.random() * 4 | 0;
-    const h = 4 + Math.random() * 4 | 0;
-    const x = 1 + Math.random() * (GRID - w - 2) | 0;
-    const y = 1 + Math.random() * (GRID - h - 2) | 0;
-
-    for (let iy = y; iy < y + h; iy++)
-      for (let ix = x; ix < x + w; ix++)
-        map[iy][ix] = FLOOR;
-
-    rooms.push({ cx: x + 2, cy: y + 2 });
-  }
-
-  player.x = rooms[0].cx;
-  player.y = rooms[0].cy;
-  spawnEnemies(rooms);
+/* ======================
+   UTILS
+====================== */
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-/* =====================================================
-   INPUT
-===================================================== */
-document.addEventListener("keydown", e => {
-  let nx = player.x, ny = player.y;
-
-  if (e.key === "ArrowUp") ny--;
-  if (e.key === "ArrowDown") ny++;
-  if (e.key === "ArrowLeft") nx--, player.dir = -1;
-  if (e.key === "ArrowRight") nx++, player.dir = 1;
-
-  if (map[ny]?.[nx] === FLOOR) {
-    player.x = nx;
-    player.y = ny;
-  }
-
-  if (e.key === "f") fireProjectile(player.dir, 0);
-  if (e.key === "s") saveGame();
-  if (e.key === "l") loadGame();
-});
-
-/* =====================================================
-   DRAW
-===================================================== */
-function drawSprite(img, frame, x, y, flip = false) {
-  ctx.save();
-  ctx.translate(x + 16, y + 16);
-  if (flip) ctx.scale(-1, 1);
-  ctx.drawImage(img, frame * 32, 0, 32, 32, -16, -16, 32, 32);
-  ctx.restore();
+function addLog(msg) {
+  log.push(msg);
 }
 
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  revealFog();
-
-  for (let y = 0; y < GRID; y++)
-    for (let x = 0; x < GRID; x++) {
-      if (!seen[y][x]) ctx.fillStyle = "#000";
-      else ctx.fillStyle = map[y][x] === WALL ? "#2b1b3d" : "#140b1f";
-      ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
-    }
-
-  player.tick++;
-  if (player.tick % 8 === 0) player.frame = (player.frame + 1) % 4;
-
-  drawSprite(
-    sprites.player,
-    player.frame,
-    player.x * TILE,
-    player.y * TILE,
-    player.dir === -1
-  );
-
-  enemies.forEach(e => {
-    e.tick++;
-    if (e.tick % 10 === 0) e.frame = (e.frame + 1) % 4;
-    drawSprite(sprites.enemy, e.frame, e.x * TILE, e.y * TILE);
-  });
-
-  ctx.fillStyle = "#ff66ff";
-  projectiles.forEach(p => {
-    p.x += p.dx * 0.25;
-    p.y += p.dy * 0.25;
-    ctx.fillRect(p.x * TILE + 14, p.y * TILE + 14, 4, 4);
-  });
-
-  drawLighting();
-
-  document.getElementById("stats").innerText =
-    `HP ${player.hp}/${player.maxHp}\nFloor ${floorLevel}`;
-}
-
-/* =====================================================
+/* ======================
    LOOP
-===================================================== */
+====================== */
+generateFloor();
+updateVisibility();
+
 function loop() {
   draw();
   requestAnimationFrame(loop);
 }
 
-/* =====================================================
-   INIT
-===================================================== */
-generateFloor();
 loop();
