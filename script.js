@@ -1,333 +1,360 @@
-/*************************************************
- * PLAYER STATE
- *************************************************/
-let player = {
-  health: 100,
-  maxHealth: 100,
-  skillLevel: 1,
-  skillPoints: 0,
-  morality: 0,
-  faction: "Neutral",
-  location: 0,
-  inventory: [],
-  skills: {},
-  reputation: {
-    Order: 0,
-    Ashborn: 0,
-    Wildfolk: 0
-  },
-  quests: {},
-  flags: {}
+/* =====================================================
+   CORE CONFIG
+===================================================== */
+const TILE = 32;
+const GRID = 12;
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+/* =====================================================
+   AUDIO (PROCEDURAL)
+===================================================== */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(freq = 300, dur = 0.12) {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.frequency.value = freq;
+  gain.gain.value = 0.08;
+  osc.start();
+  osc.stop(audioCtx.currentTime + dur);
+}
+
+/* =====================================================
+   PLAYER
+===================================================== */
+const player = {
+  x: 0,
+  y: 0,
+  hp: 100,
+  maxHp: 100,
+  mana: 50,
+  maxMana: 50,
+  attack: 10,
+  skillPoints: 0
 };
 
-/*************************************************
- * WORLD MAP (50 LOCATIONS)
- *************************************************/
-const locations = [];
-for (let i = 0; i < 50; i++) {
-  locations.push({
-    id: i,
-    name: `Region ${i}`,
-    desc: `A scarred land shaped by forgotten wars (${i}).`,
-    npc: `npc${i * 2}`,
-    boss: i % 10 === 0 ? `boss${i}` : null
-  });
-}
-
-/*************************************************
- * NPCS — 100 UNIQUE PERSONALITIES
- *************************************************/
-const personalityTypes = [
-  "Bitter survivor","Hopeful idealist","Fanatical zealot","Broken scholar",
-  "Greedy trader","Silent watcher","Cruel opportunist","Kind healer",
-  "Traumatized soldier","Laughing nihilist"
-];
-
-const npcs = {};
-for (let i = 0; i < 100; i++) {
-  const type = personalityTypes[i % personalityTypes.length];
-
-  npcs[`npc${i}`] = {
-    name: `NPC ${i}`,
-    personality: type,
-    moralityBias: i % 2 === 0 ? 1 : -1,
-    factionBias: i % 3 === 0 ? "Order" : i % 3 === 1 ? "Ashborn" : "Wildfolk",
-    dialogue: [
-      `[${type}] "This land remembers every sin."`,
-      `[${type}] "You walk like someone who hasn’t chosen yet."`,
-      `[${type}] "Whatever you do—own it."`
-    ],
-    givesQuest: i % 5 === 0,
-    givesSkill: i % 7 === 0
-  };
-}
-
-/*************************************************
- * QUEST CHAINS
- *************************************************/
-const quests = {};
-for (let i = 0; i < 15; i++) {
-  quests[`quest${i}`] = {
-    stage: 0,
-    steps: [
-      "Investigate the ruins.",
-      "Choose who to help.",
-      "Deal with the aftermath."
-    ],
-    completed: false
-  };
-}
-
-/*************************************************
- * BOSSES
- *************************************************/
-const bosses = {};
-for (let i = 0; i < 5; i++) {
-  bosses[`boss${i * 10}`] = {
-    name: `Warden of Ash ${i}`,
-    health: 80 + i * 30,
-    attack: 12 + i * 6
-  };
-}
-
-/*************************************************
- * SKILL TREE
- *************************************************/
-const skillTree = {
-  combat: {
-    powerStrike: {
-      name: "Power Strike",
-      cost: 1,
-      effect: () => player.flags.powerStrike = true
+/* =====================================================
+   SKILL TREES
+===================================================== */
+const skillTrees = {
+  melee: {
+    power: {
+      lvl: 0, max: 5,
+      apply: () => player.attack += 2
     },
-    endurance: {
-      name: "Endurance",
-      cost: 1,
-      effect: () => {
-        player.maxHealth += 20;
-        player.health += 20;
+    vitality: {
+      lvl: 0, max: 5,
+      apply: () => player.maxHp += 10
+    }
+  },
+  magic: {
+    mana: {
+      lvl: 0, max: 5,
+      apply: () => player.maxMana += 10
+    },
+    fire: {
+      lvl: 0, max: 5
+    }
+  }
+};
+
+function renderSkills() {
+  const div = document.getElementById("skills");
+  div.innerHTML = "<b>Skills</b><br>";
+  for (const tree in skillTrees) {
+    for (const key in skillTrees[tree]) {
+      const s = skillTrees[tree][key];
+      const btn = document.createElement("button");
+      btn.textContent = `${tree}:${key} (${s.lvl})`;
+      btn.onclick = () => {
+        if (player.skillPoints > 0 && s.lvl < s.max) {
+          s.lvl++;
+          if (s.apply) s.apply();
+          player.skillPoints--;
+        }
+      };
+      div.appendChild(btn);
+    }
+  }
+}
+
+/* =====================================================
+   MAP + FLOORS + FOG OF WAR
+===================================================== */
+const WALL = 1;
+const FLOOR = 0;
+
+let map = [];
+let seen = [];
+let floorLevel = 1;
+
+function emptyMap() {
+  map = Array.from({ length: GRID }, () => Array(GRID).fill(WALL));
+  seen = Array.from({ length: GRID }, () => Array(GRID).fill(false));
+}
+
+function carveRoom(x, y, w, h) {
+  for (let iy = y; iy < y + h; iy++)
+    for (let ix = x; ix < x + w; ix++)
+      map[iy][ix] = FLOOR;
+}
+
+function carveCorridor(x1, y1, x2, y2) {
+  while (x1 !== x2) {
+    map[y1][x1] = FLOOR;
+    x1 += Math.sign(x2 - x1);
+  }
+  while (y1 !== y2) {
+    map[y1][x1] = FLOOR;
+    y1 += Math.sign(y2 - y1);
+  }
+}
+
+function revealFog() {
+  for (let y = -2; y <= 2; y++)
+    for (let x = -2; x <= 2; x++) {
+      const nx = player.x + x;
+      const ny = player.y + y;
+      if (seen[ny]?.[nx] !== undefined) {
+        seen[ny][nx] = true;
       }
     }
-  },
-  social: {
-    silverTongue: {
-      name: "Silver Tongue",
-      cost: 1,
-      effect: () => player.flags.silverTongue = true
-    },
-    intimidation: {
-      name: "Intimidation",
-      cost: 1,
-      effect: () => player.flags.intimidation = true
-    }
-  },
-  survival: {
-    scavenger: {
-      name: "Scavenger",
-      cost: 1,
-      effect: () => player.flags.scavenger = true
-    },
-    ironWill: {
-      name: "Iron Will",
-      cost: 1,
-      effect: () => player.flags.ironWill = true
-    }
-  }
-};
-
-/*************************************************
- * UI RENDERING
- *************************************************/
-function render() {
-  document.getElementById("health").textContent = player.health;
-  document.getElementById("skill").textContent = player.skillLevel;
-  document.getElementById("morality").textContent = player.morality;
-  document.getElementById("faction").textContent = player.faction;
-
-  const loc = locations[player.location];
-  document.getElementById("location-name").textContent = loc.name;
-  document.getElementById("location-desc").textContent = loc.desc;
-
-  renderMap();
-  renderChoices();
 }
 
-/*************************************************
- * MAP
- *************************************************/
-function renderMap() {
-  const map = document.getElementById("map");
-  map.innerHTML = "";
-  locations.forEach(loc => {
-    const tile = document.createElement("div");
-    tile.className = "map-tile";
-    tile.textContent = loc.id;
-    tile.onclick = () => {
-      player.location = loc.id;
-      log(`You travel to ${loc.name}.`);
-      render();
-    };
-    map.appendChild(tile);
+/* =====================================================
+   ENEMIES + BOSS
+===================================================== */
+let enemies = [];
+let boss = null;
+
+function spawnEnemies(rooms) {
+  enemies = [];
+  for (let i = 1; i < rooms.length; i++) {
+    enemies.push({
+      x: rooms[i].cx,
+      y: rooms[i].cy,
+      hp: 30 + floorLevel * 5,
+      atk: 6 + floorLevel,
+    });
+  }
+}
+
+function spawnBoss(room) {
+  boss = {
+    x: room.cx,
+    y: room.cy,
+    hp: 150 + floorLevel * 20,
+    atk: 15 + floorLevel * 2,
+    cooldown: 0
+  };
+}
+
+function enemyAI(e) {
+  const dx = player.x - e.x;
+  const dy = player.y - e.y;
+  const dist = Math.abs(dx) + Math.abs(dy);
+
+  if (dist < 6) {
+    const nx = e.x + Math.sign(dx);
+    const ny = e.y + Math.sign(dy);
+    if (map[ny]?.[nx] === FLOOR) {
+      e.x = nx;
+      e.y = ny;
+    }
+  }
+
+  if (dist === 1) {
+    player.hp -= e.atk;
+    playSound(180);
+    if (player.hp <= 0) {
+      alert("You died!");
+      floorLevel = 1;
+      player.hp = player.maxHp;
+      generateFloor();
+    }
+  }
+}
+
+function bossAI() {
+  if (!boss) return;
+  boss.cooldown--;
+  if (boss.cooldown <= 0) {
+    fireProjectile(
+      Math.sign(player.x - boss.x),
+      Math.sign(player.y - boss.y),
+      boss.atk,
+      boss.x,
+      boss.y
+    );
+    boss.cooldown = 20;
+  }
+}
+
+/* =====================================================
+   SPELLS + PROJECTILES
+===================================================== */
+let projectiles = [];
+
+function fireProjectile(dx, dy, dmg, x = player.x, y = player.y) {
+  projectiles.push({ x, y, dx, dy, dmg });
+  playSound(500);
+}
+
+function updateProjectiles() {
+  projectiles.forEach(p => {
+    p.x += p.dx;
+    p.y += p.dy;
+
+    enemies.forEach(e => {
+      if (e.x === p.x && e.y === p.y) {
+        e.hp -= p.dmg;
+        p.dead = true;
+      }
+    });
+
+    if (boss && boss.x === p.x && boss.y === p.y) {
+      boss.hp -= p.dmg;
+      p.dead = true;
+    }
+
+    if (map[p.y]?.[p.x] !== FLOOR) p.dead = true;
   });
+
+  projectiles = projectiles.filter(p => !p.dead);
 }
 
-/*************************************************
- * CHOICES
- *************************************************/
-function renderChoices() {
-  const div = document.getElementById("choices");
-  div.innerHTML = "";
+/* =====================================================
+   FLOOR GENERATION
+===================================================== */
+function generateFloor() {
+  emptyMap();
+  projectiles = [];
+  boss = null;
 
-  const loc = locations[player.location];
+  const rooms = [];
+  for (let i = 0; i < 5; i++) {
+    const w = 3 + Math.floor(Math.random() * 3);
+    const h = 3 + Math.floor(Math.random() * 3);
+    const x = Math.floor(Math.random() * (GRID - w - 1)) + 1;
+    const y = Math.floor(Math.random() * (GRID - h - 1)) + 1;
+    carveRoom(x, y, w, h);
+    rooms.push({ cx: x + 1, cy: y + 1 });
+  }
 
-  addChoice("Explore", explore);
+  for (let i = 1; i < rooms.length; i++)
+    carveCorridor(
+      rooms[i - 1].cx, rooms[i - 1].cy,
+      rooms[i].cx, rooms[i].cy
+    );
 
-  if (loc.npc) addChoice("Talk to NPC", () => talkNPC(loc.npc));
-  if (loc.boss) addChoice("Fight Boss", () => fightBoss(loc.boss));
+  player.x = rooms[0].cx;
+  player.y = rooms[0].cy;
 
-  addChoice("Make Moral Choice", moralChoice);
+  spawnEnemies(rooms);
+
+  if (floorLevel % 3 === 0)
+    spawnBoss(rooms[rooms.length - 1]);
 }
 
-/*************************************************
- * NPC INTERACTION
- *************************************************/
-function talkNPC(id) {
-  const npc = npcs[id];
-  npc.dialogue.forEach(d => log(`${npc.name}: ${d}`));
+/* =====================================================
+   INPUT
+===================================================== */
+document.addEventListener("keydown", e => {
+  let nx = player.x;
+  let ny = player.y;
 
-  player.morality += npc.moralityBias;
-  player.reputation[npc.factionBias]++;
+  if (e.key === "ArrowUp") ny--;
+  if (e.key === "ArrowDown") ny++;
+  if (e.key === "ArrowLeft") nx--;
+  if (e.key === "ArrowRight") nx++;
 
-  if (npc.givesQuest) {
-    const q = Object.keys(quests).find(q => !player.quests[q]);
-    if (q) {
-      player.quests[q] = 0;
-      log("📜 Quest started.");
+  if (map[ny]?.[nx] === FLOOR) {
+    player.x = nx;
+    player.y = ny;
+  }
+
+  if (e.key === "f" && player.mana >= 10) {
+    fireProjectile(1, 0, 15);
+    player.mana -= 10;
+  }
+
+  if (e.key === "h" && player.mana >= 15) {
+    player.hp = Math.min(player.maxHp, player.hp + 25);
+    player.mana -= 15;
+    playSound(300);
+  }
+
+  if (e.key === "r") {
+    floorLevel++;
+    generateFloor();
+  }
+});
+
+/* =====================================================
+   DRAWING
+===================================================== */
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  revealFog();
+
+  for (let y = 0; y < GRID; y++)
+    for (let x = 0; x < GRID; x++) {
+      ctx.fillStyle = !seen[y][x]
+        ? "#000"
+        : map[y][x] === WALL ? "#222" : "#111";
+      ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
     }
+
+  ctx.fillStyle = "#4af";
+  ctx.fillRect(player.x * TILE + 8, player.y * TILE + 8, 16, 16);
+
+  ctx.fillStyle = "#f44";
+  enemies.forEach(e =>
+    ctx.fillRect(e.x * TILE + 8, e.y * TILE + 8, 16, 16)
+  );
+
+  if (boss) {
+    ctx.fillStyle = "#a0f";
+    ctx.fillRect(boss.x * TILE + 4, boss.y * TILE + 4, 24, 24);
   }
 
-  if (npc.givesSkill) {
-    player.skillPoints++;
-    log("⭐ You gained a skill point.");
-  }
+  ctx.fillStyle = "#ff0";
+  projectiles.forEach(p =>
+    ctx.fillRect(p.x * TILE + 12, p.y * TILE + 12, 8, 8)
+  );
 
-  updateFaction();
-  render();
+  document.getElementById("stats").innerText =
+    `HP ${player.hp}/${player.maxHp} | MP ${player.mana}/${player.maxMana} | Floor ${floorLevel}`;
 }
 
-/*************************************************
- * SKILLS
- *************************************************/
-function learnSkill(branch, skill) {
-  const s = skillTree[branch][skill];
-  if (player.skillPoints < s.cost || player.skills[skill]) return;
+/* =====================================================
+   GAME LOOP
+===================================================== */
+function update() {
+  enemies.forEach(enemyAI);
+  bossAI();
+  updateProjectiles();
+  enemies = enemies.filter(e => e.hp > 0);
 
-  player.skillPoints -= s.cost;
-  player.skills[skill] = true;
-  s.effect();
-  log(`🧠 Learned ${s.name}`);
-}
-
-/*************************************************
- * MORALITY & FACTIONS
- *************************************************/
-function moralChoice() {
-  const shift = Math.random() > 0.5 ? 1 : -1;
-  player.morality += shift;
-  log("⚖️ A choice is made.");
-  updateFaction();
-  render();
-}
-
-function updateFaction() {
-  if (player.morality >= 8) player.faction = "Order";
-  else if (player.morality <= -8) player.faction = "Ashborn";
-  else if (player.reputation.Wildfolk >= 5) player.faction = "Wildfolk";
-  else player.faction = "Neutral";
-}
-
-/*************************************************
- * COMBAT
- *************************************************/
-function fightBoss(id) {
-  const boss = bosses[id];
-  log(`🔥 You face ${boss.name}`);
-
-  while (boss.health > 0 && player.health > 0) {
-    boss.health -= 10 + (player.flags.powerStrike ? 5 : 0);
-    player.health -= boss.attack;
-  }
-
-  if (player.health > 0) {
-    log(`🏆 ${boss.name} defeated.`);
-    player.skillLevel++;
-    checkEnding();
-  } else {
-    log("☠️ You have fallen.");
-  }
-
-  render();
-}
-
-/*************************************************
- * EXPLORATION
- *************************************************/
-function explore() {
-  log("You search the area...");
-  if (player.flags.scavenger && Math.random() > 0.5) {
-    player.inventory.push("Relic");
-    log("You found a relic.");
+  if (boss && boss.hp <= 0) {
+    boss = null;
+    player.skillPoints += 2;
   }
 }
 
-/*************************************************
- * ENDINGS
- *************************************************/
-function checkEnding() {
-  if (player.skillLevel < 5) return;
-
-  let ending = "";
-
-  if (player.faction === "Order" && player.morality > 10)
-    ending = "The Beacon Ending — Order rises, freedom fades.";
-  else if (player.faction === "Ashborn" && player.morality < -10)
-    ending = "The Ashen King Ending — You rule through fear.";
-  else if (player.faction === "Wildfolk")
-    ending = "The Verdant Ending — Nature consumes the ruins.";
-  else
-    ending = "The Drifter Ending — You leave the world unchanged.";
-
-  document.getElementById("choices").innerHTML = "";
-  log("🏁 ENDING REACHED");
-  log(ending);
+function loop() {
+  update();
+  draw();
+  renderSkills();
+  requestAnimationFrame(loop);
 }
 
-/*************************************************
- * SAVE SLOTS
- *************************************************/
-function saveGame(slot) {
-  localStorage.setItem(`ashenSave${slot}`, JSON.stringify(player));
-  log(`💾 Saved to slot ${slot}`);
-}
-
-function loadGame(slot) {
-  const data = localStorage.getItem(`ashenSave${slot}`);
-  if (!data) return;
-  player = JSON.parse(data);
-  log(`📂 Loaded slot ${slot}`);
-  render();
-}
-
-/*************************************************
- * LOG
- *************************************************/
-function log(text) {
-  const out = document.getElementById("output");
-  out.innerHTML += `<p>${text}</p>`;
-  out.scrollTop = out.scrollHeight;
-}
-
-/*************************************************
- * START GAME
- *************************************************/
-render();
+/* =====================================================
+   INIT
+===================================================== */
+generateFloor();
+loop();
