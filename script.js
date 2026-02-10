@@ -1,270 +1,224 @@
-/* ==================================================
-   CONFIG
-================================================== */
-const TILE = 16;
-const VIEW = 20;
-const WORLD = 100;
+/* ========= CONFIG ========= */
+const TILE = 32;
+const GRID = 20;
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-canvas.width = VIEW * TILE;
-canvas.height = VIEW * TILE;
+canvas.width = GRID * TILE;
+canvas.height = GRID * TILE;
 
-const mini = document.getElementById("minimap");
-const mctx = mini.getContext("2d");
-mini.width = WORLD;
-mini.height = WORLD;
+const mapCanvas = document.getElementById("minimap");
+const mapCtx = mapCanvas.getContext("2d");
 
-/* ==================================================
-   GAME STATE
-================================================== */
-let dead = false;
-let skillMenu = false;
-let skillPoints = 5;
+/* ========= BIOMES ========= */
+const BIOMES = [
+  { name:"Dungeon", floor:"#444", wall:"#222", fog:"#000" },
+  { name:"Cavern", floor:"#355f3b", wall:"#1f3a25", fog:"#020" },
+  { name:"Hell", floor:"#6b1f1f", wall:"#2a0000", fog:"#200" },
+  { name:"Ice", floor:"#4b6f8a", wall:"#243a4a", fog:"#013" },
+  { name:"Arcane", floor:"#5b3b7a", wall:"#2a163f", fog:"#102" }
+];
+
+let biome;
+
+/* ========= STATE ========= */
+let floor = 1;
+let dungeon = [];
+let visible = [];
+let entities = [];
+let projectiles = [];
+let effects = [];
+let log = [];
 
 const player = {
-  x: 50,
-  y: 50,
-  hp: 100,
-  maxHp: 100,
-  dir: 0,
-  skills: {
-    melee: 1,
-    magic: 1,
-    ranged: 1,
-    stealth: 0
-  }
+  x:10, y:10,
+  dir:{x:1,y:0},
+  hp:100, maxHp:100,
+  mana:40, maxMana:40,
+  atk:5,
+  ranged:4,
+  magic:6,
+  light:6,
+  skillPoints:3
 };
 
-let enemies = [];
-let explored = Array.from({ length: WORLD }, () =>
-  Array(WORLD).fill(false)
-);
+/* ========= MAP ========= */
+function generateFloor() {
+  biome = BIOMES[(floor-1)%BIOMES.length];
+  dungeon = Array.from({length:GRID},()=>Array(GRID).fill(1));
+  visible = Array.from({length:GRID},()=>Array(GRID).fill(false));
 
-/* ==================================================
-   SPRITES (PIXEL KNIGHT + ENEMIES)
-================================================== */
-const knightSprites = [
-  [
-    "00100",
-    "01110",
-    "10101",
-    "01110",
-    "01010"
-  ],
-  [
-    "00100",
-    "01110",
-    "10101",
-    "01110",
-    "10101"
-  ]
-];
-
-const enemySprite = [
-  "0110",
-  "1111",
-  "1011",
-  "1111"
-];
-
-/* ==================================================
-   SPRITE DRAWER
-================================================== */
-function drawSprite(sprite, x, y, color, scale) {
-  ctx.fillStyle = color;
-  sprite.forEach((row, j) => {
-    [...row].forEach((p, i) => {
-      if (p === "1") {
-        ctx.fillRect(
-          x + i * scale,
-          y + j * scale,
-          scale,
-          scale
-        );
-      }
-    });
-  });
+  for(let r=0;r<9;r++){
+    let w=rand(4,7), h=rand(4,7);
+    let x=rand(1,GRID-w-1), y=rand(1,GRID-h-1);
+    for(let i=x;i<x+w;i++)
+      for(let j=y;j<y+h;j++)
+        dungeon[j][i]=0;
+  }
+  spawnEnemies();
+  updateVisibility();
+  addLog(`🌍 ${biome.name}`);
 }
 
-/* ==================================================
-   INPUT
-================================================== */
-window.addEventListener("keydown", e => {
-  if (dead) {
-    if (e.key.toLowerCase() === "r") restartGame();
-    return;
-  }
+function spawnEnemies(){
+  entities=[];
+  for(let i=0;i<10+floor;i++)
+    entities.push({x:rand(1,18),y:rand(1,18),hp:20+floor*4,type:"enemy"});
+  if(floor%3===0)
+    entities.push({x:10,y:10,hp:150,type:"boss"});
+}
 
-  if (e.key.toLowerCase() === "k") {
-    toggleSkills();
-    return;
-  }
-
-  if (skillMenu) return;
-
-  const d = {
-    ArrowUp: [0, -1],
-    ArrowDown: [0, 1],
-    ArrowLeft: [-1, 0],
-    ArrowRight: [1, 0]
-  }[e.key];
-
-  if (d) {
-    player.x = clamp(player.x + d[0], 0, WORLD - 1);
-    player.y = clamp(player.y + d[1], 0, WORLD - 1);
-    enemyTurn();
-  }
+/* ========= INPUT ========= */
+window.addEventListener("keydown",e=>{
+  const m={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];
+  if(m) movePlayer(...m);
+  if(e.key==="z") meleeAttack();
+  if(e.key==="x") rangedAttack();
+  if(e.key==="c") castSpell();
+  if(e.key==="k") toggleSkills();
 });
 
-/* ==================================================
-   ENEMY AI + COMBAT
-================================================== */
-function enemyTurn() {
-  enemies.forEach(e => {
-    const dx = player.x - e.x;
-    const dy = player.y - e.y;
-
-    if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1) {
-      player.hp -= 8;
-    } else {
-      e.x += Math.sign(dx);
-      e.y += Math.sign(dy);
-    }
-  });
-
-  if (player.hp <= 0) {
-    dead = true;
-    canvas.classList.add("dead");
+/* ========= PLAYER ========= */
+function movePlayer(dx,dy){
+  player.dir={x:dx,y:dy};
+  let nx=player.x+dx, ny=player.y+dy;
+  if(dungeon[ny]?.[nx]===0){
+    player.x=nx; player.y=ny;
+    updateVisibility(); enemyTurn();
   }
 }
 
-/* ==================================================
-   SKILLS
-================================================== */
-function toggleSkills() {
-  skillMenu = !skillMenu;
-  document.getElementById("skills").classList.toggle("hidden");
-  renderSkills();
+/* ========= ATTACKS ========= */
+function meleeAttack(){
+  let tx=player.x+player.dir.x, ty=player.y+player.dir.y;
+  hitTile(tx,ty,player.atk*4,"🗡 Slash");
 }
 
-function upgradeSkill(skill) {
-  if (skillPoints <= 0) return;
-  player.skills[skill]++;
-  skillPoints--;
-  renderSkills();
+function rangedAttack(){
+  projectiles.push({x:player.x,y:player.y,dx:player.dir.x,dy:player.dir.y,dmg:player.ranged*5});
+  addLog("🏹 Shot"); enemyTurn();
 }
 
-function renderSkills() {
-  const s = document.getElementById("skills");
-  s.innerHTML = `
-    <b>Skill Points: ${skillPoints}</b><br><br>
-    Melee (${player.skills.melee})
-    <button onclick="upgradeSkill('melee')">+</button><br>
-    Magic (${player.skills.magic})
-    <button onclick="upgradeSkill('magic')">+</button><br>
-    Ranged (${player.skills.ranged})
-    <button onclick="upgradeSkill('ranged')">+</button><br>
-    Stealth (${player.skills.stealth})
-    <button onclick="upgradeSkill('stealth')">+</button>
-  `;
+function castSpell(){
+  if(player.mana<6) return;
+  player.mana-=6;
+  for(let i=1;i<=3;i++)
+    hitTile(player.x+player.dir.x*i,player.y+player.dir.y*i,player.magic*4,"🔮 Arcane");
+  enemyTurn();
 }
 
-/* ==================================================
-   MINIMAP
-================================================== */
-function drawMinimap() {
-  explored[player.y][player.x] = true;
-
-  for (let y = 0; y < WORLD; y++) {
-    for (let x = 0; x < WORLD; x++) {
-      if (explored[y][x]) {
-        mctx.fillStyle = "#333";
-        mctx.fillRect(x, y, 1, 1);
-      }
+function hitTile(x,y,dmg,msg){
+  for(let e of entities){
+    if(e.x===x&&e.y===y){
+      e.hp-=dmg;
+      effects.push({x,y,t:10});
+      addLog(msg);
     }
   }
-
-  enemies.forEach(e => {
-    mctx.fillStyle = "#f44";
-    mctx.fillRect(e.x, e.y, 1, 1);
-  });
-
-  mctx.fillStyle = "#4f4";
-  mctx.fillRect(player.x, player.y, 1, 1);
+  cleanupEnemies();
 }
 
-/* ==================================================
-   RENDER
-================================================== */
-let frame = 0;
-let tick = 0;
+/* ========= AI ========= */
+function enemyTurn(){
+  for(let e of entities){
+    let dx=Math.sign(player.x-e.x), dy=Math.sign(player.y-e.y);
+    if(Math.abs(dx)+Math.abs(dy)<=1){
+      player.hp-=5; addLog("💥 Hit");
+    } else { e.x+=dx; e.y+=dy; }
+  }
+}
 
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+/* ========= PROJECTILES ========= */
+function updateProjectiles(){
+  for(let p of projectiles){
+    p.x+=p.dx; p.y+=p.dy;
+    for(let e of entities)
+      if(e.x===p.x&&e.y===p.y){e.hp-=p.dmg;p.hit=true;}
+  }
+  projectiles=projectiles.filter(p=>!p.hit);
+  cleanupEnemies();
+}
 
-  const ox = player.x - VIEW / 2;
-  const oy = player.y - VIEW / 2;
+/* ========= VISIBILITY ========= */
+function updateVisibility(){
+  for(let y=0;y<GRID;y++)
+    for(let x=0;x<GRID;x++)
+      visible[y][x]=Math.hypot(player.x-x,player.y-y)<=player.light;
+}
 
-  for (let y = 0; y < VIEW; y++) {
-    for (let x = 0; x < VIEW; x++) {
-      ctx.fillStyle = "#222";
-      ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
-    }
+/* ========= RENDER ========= */
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){
+    ctx.fillStyle=!visible[y][x]?biome.fog:(dungeon[y][x]?biome.wall:biome.floor);
+    ctx.fillRect(x*TILE,y*TILE,TILE,TILE);
+  }
+  ctx.fillStyle="#0f0";
+  ctx.fillRect(player.x*TILE,player.y*TILE,TILE,TILE);
+
+  for(let e of entities){
+    ctx.fillStyle=e.type==="boss"?"#f00":"#f80";
+    ctx.fillRect(e.x*TILE,e.y*TILE,TILE,TILE);
   }
 
-  enemies.forEach(e => {
-    drawSprite(
-      enemySprite,
-      (e.x - ox) * TILE,
-      (e.y - oy) * TILE,
-      "#f55",
-      4
-    );
-  });
-
-  drawSprite(
-    knightSprites[frame],
-    (player.x - ox) * TILE,
-    (player.y - oy) * TILE,
-    "#6f6",
-    3
-  );
+  for(let fx of effects){ctx.fillStyle="rgba(255,60,60,.6)";
+    ctx.fillRect(fx.x*TILE,fx.y*TILE,TILE,TILE);fx.t--;}
+  effects=effects.filter(f=>f.t>0);
 
   drawMinimap();
+  drawUI();
 }
 
-/* ==================================================
-   UTILS
-================================================== */
-function clamp(v, min, max) {
-  return Math.max(min, Math.min(max, v));
+/* ========= MINIMAP ========= */
+function drawMinimap(){
+  let s=mapCanvas.width/GRID;
+  mapCtx.clearRect(0,0,mapCanvas.width,mapCanvas.height);
+  for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){
+    if(!visible[y][x])continue;
+    mapCtx.fillStyle=dungeon[y][x]?biome.wall:biome.floor;
+    mapCtx.fillRect(x*s,y*s,s,s);
+  }
+  mapCtx.fillStyle="#0f0";
+  mapCtx.fillRect(player.x*s,player.y*s,s,s);
 }
 
-function restartGame() {
-  location.reload();
+/* ========= UI ========= */
+function drawUI(){
+  document.getElementById("stats").innerHTML=
+    `❤️ ${player.hp}/${player.maxHp}<br>
+     🔮 ${player.mana}/${player.maxMana}<br>
+     🧬 Floor ${floor}<br>
+     🌍 ${biome.name}`;
+  document.getElementById("skillPoints").innerText=`Skill Points: ${player.skillPoints}`;
 }
 
-/* ==================================================
-   INIT
-================================================== */
-for (let i = 0; i < 40; i++) {
-  enemies.push({
-    x: Math.floor(Math.random() * WORLD),
-    y: Math.floor(Math.random() * WORLD)
-  });
+/* ========= SKILLS ========= */
+function toggleSkills(){
+  document.getElementById("skills").classList.toggle("hidden");
+}
+function upgrade(stat){
+  if(player.skillPoints<=0)return;
+  player[stat]++; player.skillPoints--;
 }
 
-renderSkills();
-
-/* ==================================================
-   LOOP
-================================================== */
-function loop() {
-  tick++;
-  if (tick % 20 === 0) frame = (frame + 1) % 2;
-  draw();
-  requestAnimationFrame(loop);
+/* ========= SAVE ========= */
+function saveGame(){
+  localStorage.setItem("roguelike",JSON.stringify({player,floor}));
+}
+function loadGame(){
+  let d=JSON.parse(localStorage.getItem("roguelike"));
+  if(!d)return;
+  Object.assign(player,d.player);
+  floor=d.floor;
+  generateFloor();
 }
 
+/* ========= UTILS ========= */
+function cleanupEnemies(){entities=entities.filter(e=>e.hp>0);}
+function addLog(m){log.push(m);}
+function rand(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+
+/* ========= LOOP ========= */
+generateFloor();
+function loop(){updateProjectiles();draw();requestAnimationFrame(loop);}
 loop();
