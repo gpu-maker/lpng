@@ -1,6 +1,6 @@
 body {
   background:#0a0a0a;
-  color:#eee;
+  color:#eaeaea;
   font-family: monospace;
   text-align:center;
 }
@@ -11,3 +11,17 @@ canvas {
   background:black;
 }
 
+#hud {
+  margin-top:10px;
+}
+
+#stats {
+  margin-bottom:6px;
+}
+
+button {
+  background:#222;
+  color:#fff;
+  border:1px solid #555;
+  margin:2px;
+}
