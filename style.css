@@ -1,55 +1,80 @@
 body {
   margin: 0;
-  background: #06060c;
-  color: #ddd;
+  background: radial-gradient(#0b0b14, #000);
+  color: #eee;
   font-family: monospace;
-}
-
-#layout {
   display: flex;
-  padding: 10px;
+  flex-direction: column;
+  align-items: center;
 }
 
-#sidebar {
-  width: 200px;
-  margin-right: 10px;
+h1 {
+  margin: 8px;
+  text-shadow: 0 0 8px crimson;
 }
 
-canvas {
-  image-rendering: pixelated;
-  border: 2px solid #333;
+#ui {
+  width: 640px;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
 }
 
-#game {
-  background: #000;
+#stats {
+  font-size: 14px;
+  color: #7df;
 }
 
 #minimap {
-  width: 180px;
-  height: 180px;
-  background: #111;
+  border: 2px solid #333;
+  image-rendering: pixelated;
+}
+
+canvas#game {
+  border: 4px solid #333;
+  background: #000;
+  image-rendering: pixelated;
+  box-shadow: 0 0 30px #000;
+}
+
+#controlsHelp {
+  width: 640px;
+  margin-top: 6px;
+  padding: 6px;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid #333;
+  font-size: 12px;
+  color: #ccc;
+  text-align: center;
+}
+
+#buttons {
   margin-top: 6px;
 }
 
-.ctrl {
-  font-size: 13px;
-  margin-bottom: 4px;
+button {
+  background: #111;
+  color: #fff;
+  border: 1px solid #555;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #222;
 }
 
 #skills {
   position: absolute;
-  top: 50px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #111;
+  top: 80px;
+  background: rgba(0,0,0,0.95);
   border: 2px solid #555;
   padding: 10px;
+  width: 200px;
+  text-align: center;
 }
 
 .hidden {
   display: none;
 }
 
-.dead {
-  filter: grayscale(1) brightness(0.4);
-}
