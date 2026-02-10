@@ -1,85 +1,77 @@
 /* ======================
-   CORE CONFIG
+   CONFIG
 ====================== */
-const TILE = 32;
-const GRID = 20;
+const TILE = 16;
+const WORLD = 100;
+const VIEW = 20;
+
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-canvas.width = GRID * TILE;
-canvas.height = GRID * TILE;
+canvas.width = VIEW * TILE;
+canvas.height = VIEW * TILE;
 
 /* ======================
    GAME STATE
 ====================== */
-let floor = 1;
-let dungeon = [];
-let visible = [];
-let entities = [];
-let projectiles = [];
-let log = [];
+let gameOver = false;
+let skillMenu = false;
+let skillPoints = 3;
 
 const player = {
-  x: 10, y: 10,
+  x: 50, y: 50,
   hp: 100, maxHp: 100,
-  mana: 40, maxMana: 40,
-  atk: 5,
-  ranged: 3,
-  magic: 4,
-  light: 6,
+  mana: 40,
   skills: {
     melee: 1,
+    magic: 1,
     ranged: 1,
-    magic: 1
+    stealth: 0
   }
 };
 
+let enemies = [];
+let dungeon = [];
+let visible = [];
+let log = [];
+
 /* ======================
-   MAP GENERATION
+   PIXEL ICONS
 ====================== */
-function generateFloor() {
-  dungeon = Array.from({ length: GRID }, () =>
-    Array(GRID).fill(1)
-  );
+const icons = {
+  player: ["010","111","101"],
+  enemy: ["111","101","111"],
+  boss: ["1111","1001","1001","1111"]
+};
 
-  for (let r = 0; r < 9; r++) {
-    let w = rand(4, 7);
-    let h = rand(4, 7);
-    let x = rand(1, GRID - w - 1);
-    let y = rand(1, GRID - h - 1);
-
-    for (let i = x; i < x + w; i++)
-      for (let j = y; j < y + h; j++)
-        dungeon[j][i] = 0;
-  }
-
-  visible = Array.from({ length: GRID }, () =>
-    Array(GRID).fill(false)
-  );
-
-  spawnEnemies();
+function drawIcon(icon, x, y, color) {
+  ctx.fillStyle = color;
+  icon.forEach((row, j) => {
+    [...row].forEach((p, i) => {
+      if (p === "1")
+        ctx.fillRect(
+          x + i * (TILE / icon.length),
+          y + j * (TILE / icon.length),
+          TILE / icon.length,
+          TILE / icon.length
+        );
+    });
+  });
 }
 
 /* ======================
-   ENEMIES
+   WORLD GEN
 ====================== */
-function spawnEnemies() {
-  entities = [];
+function generateWorld() {
+  dungeon = Array.from({ length: WORLD }, () =>
+    Array(WORLD).fill(0)
+  );
 
-  for (let i = 0; i < 10 + floor; i++) {
-    entities.push({
-      x: rand(1, GRID - 2),
-      y: rand(1, GRID - 2),
-      hp: 20 + floor * 4,
-      type: "enemy"
-    });
-  }
-
-  if (floor % 3 === 0) {
-    entities.push({
-      x: GRID / 2,
-      y: GRID / 2,
-      hp: 150,
-      type: "boss"
+  enemies = [];
+  for (let i = 0; i < 50; i++) {
+    enemies.push({
+      x: rand(0, WORLD),
+      y: rand(0, WORLD),
+      hp: 20
     });
   }
 }
@@ -88,160 +80,139 @@ function spawnEnemies() {
    INPUT
 ====================== */
 window.addEventListener("keydown", e => {
-  const dir = {
+  if (gameOver) return;
+
+  if (e.key === "k") toggleSkills();
+
+  if (skillMenu) return;
+
+  const d = {
     ArrowUp: [0, -1],
     ArrowDown: [0, 1],
     ArrowLeft: [-1, 0],
     ArrowRight: [1, 0]
   }[e.key];
 
-  if (dir) movePlayer(dir[0], dir[1]);
-  if (e.key === " ") castSpell();
+  if (d) {
+    player.x += d[0];
+    player.y += d[1];
+    enemyTurn();
+  }
 });
 
 /* ======================
-   PLAYER ACTIONS
-====================== */
-function movePlayer(dx, dy) {
-  let nx = player.x + dx;
-  let ny = player.y + dy;
-
-  if (dungeon[ny]?.[nx] === 0) {
-    player.x = nx;
-    player.y = ny;
-    updateVisibility();
-    enemyTurn();
-  }
-}
-
-function castSpell() {
-  if (player.mana < 5) return;
-  player.mana -= 5;
-
-  projectiles.push({
-    x: player.x,
-    y: player.y,
-    dx: 1,
-    dy: 0,
-    dmg: player.magic * 3
-  });
-
-  addLog("✨ Spell cast!");
-}
-
-/* ======================
-   AI
+   AI + COMBAT
 ====================== */
 function enemyTurn() {
-  for (let e of entities) {
-    let dx = Math.sign(player.x - e.x);
-    let dy = Math.sign(player.y - e.y);
-
-    if (Math.abs(dx) + Math.abs(dy) <= 1) {
+  enemies.forEach(e => {
+    if (Math.abs(player.x - e.x) <= 1 &&
+        Math.abs(player.y - e.y) <= 1) {
       player.hp -= 5;
-      addLog("💥 You are hit!");
+      addLog("💥 Hit!");
     } else {
-      e.x += dx;
-      e.y += dy;
+      e.x += Math.sign(player.x - e.x);
+      e.y += Math.sign(player.y - e.y);
     }
+  });
+
+  if (player.hp <= 0) {
+    gameOver = true;
+    canvas.classList.add("dead");
+    addLog("☠ You died");
   }
 }
 
 /* ======================
-   VISIBILITY & LIGHT
+   SKILLS
 ====================== */
-function updateVisibility() {
-  for (let y = 0; y < GRID; y++)
-    for (let x = 0; x < GRID; x++)
-      visible[y][x] =
-        Math.hypot(player.x - x, player.y - y) <= player.light;
+function toggleSkills() {
+  skillMenu = !skillMenu;
+  document.getElementById("skills").classList.toggle("hidden");
+  renderSkills();
+}
+
+function upgrade(skill) {
+  if (skillPoints <= 0) return;
+  player.skills[skill]++;
+  skillPoints--;
+  renderSkills();
+}
+
+function renderSkills() {
+  const s = document.getElementById("skills");
+  s.innerHTML = `
+    <b>Skill Points: ${skillPoints}</b><br><br>
+    Melee (${player.skills.melee})
+    <button onclick="upgrade('melee')">+</button><br>
+    Magic (${player.skills.magic})
+    <button onclick="upgrade('magic')">+</button><br>
+    Ranged (${player.skills.ranged})
+    <button onclick="upgrade('ranged')">+</button><br>
+    Stealth (${player.skills.stealth})
+    <button onclick="upgrade('stealth')">+</button>
+  `;
 }
 
 /* ======================
-   RENDERING
+   RENDER
 ====================== */
 function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  for (let y = 0; y < GRID; y++) {
-    for (let x = 0; x < GRID; x++) {
-      if (!visible[y][x]) {
-        ctx.fillStyle = "#000";
-      } else {
-        ctx.fillStyle = dungeon[y][x] ? "#222" : "#444";
-      }
-      ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+  const ox = player.x - VIEW / 2;
+  const oy = player.y - VIEW / 2;
+
+  for (let y = 0; y < VIEW; y++) {
+    for (let x = 0; x < VIEW; x++) {
+      ctx.fillStyle = "#222";
+      ctx.fillRect(x*TILE, y*TILE, TILE, TILE);
     }
   }
 
-  // Player
-  ctx.fillStyle = "#0f0";
-  ctx.fillRect(player.x * TILE, player.y * TILE, TILE, TILE);
+  enemies.forEach(e => {
+    drawIcon(
+      icons.enemy,
+      (e.x - ox) * TILE,
+      (e.y - oy) * TILE,
+      "#f55"
+    );
+  });
 
-  // Enemies
-  for (let e of entities) {
-    if (visible[e.y]?.[e.x]) {
-      ctx.fillStyle = e.type === "boss" ? "#f00" : "#f80";
-      ctx.fillRect(e.x * TILE, e.y * TILE, TILE, TILE);
-    }
-  }
+  drawIcon(
+    icons.player,
+    (player.x - ox) * TILE,
+    (player.y - oy) * TILE,
+    "#5f5"
+  );
 
-  drawUI();
+  document.getElementById("stats").innerHTML =
+    `❤️ ${player.hp} | 🧠 ${skillPoints}`;
 }
 
 /* ======================
-   UI
+   UTIL
 ====================== */
-function drawUI() {
-  document.getElementById("stats").innerHTML =
-    `❤️ ${player.hp}/${player.maxHp}
-     🔮 ${player.mana}/${player.maxMana}
-     🧬 Floor ${floor}`;
-
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min));
+}
+function addLog(t) {
+  log.push(t);
   document.getElementById("log").innerHTML =
     log.slice(-3).join("<br>");
 }
 
-/* ======================
-   SAVE / LOAD
-====================== */
-function saveGame() {
-  localStorage.setItem("roguelike", JSON.stringify({
-    player, floor
-  }));
-  addLog("💾 Game saved");
-}
-
-function loadGame() {
-  let data = JSON.parse(localStorage.getItem("roguelike"));
-  if (!data) return;
-
-  Object.assign(player, data.player);
-  floor = data.floor;
-  generateFloor();
-  addLog("📂 Game loaded");
+function restartGame() {
+  location.reload();
 }
 
 /* ======================
-   UTILS
+   START
 ====================== */
-function rand(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function addLog(msg) {
-  log.push(msg);
-}
-
-/* ======================
-   LOOP
-====================== */
-generateFloor();
-updateVisibility();
+generateWorld();
+renderSkills();
 
 function loop() {
   draw();
   requestAnimationFrame(loop);
 }
-
 loop();
