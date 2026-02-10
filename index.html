@@ -1,28 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Pixel Roguelike</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>Pixel Roguelike</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      margin: 0;
+      background: #07010f;
+      color: #ddd;
+      font-family: monospace;
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+    }
+    canvas {
+      border: 3px solid #3a1f5c;
+      image-rendering: pixelated;
+    }
+    #ui {
+      width: 220px;
+    }
+    button {
+      display: block;
+      width: 100%;
+      margin: 4px 0;
+      background: #2a0f44;
+      color: #fff;
+      border: 1px solid #5f2b8a;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
 
-<h1>⚔️ Pixel Roguelike</h1>
+  <canvas id="game"></canvas>
 
-<canvas id="game" width="384" height="384"></canvas>
+  <div id="ui">
+    <div id="stats"></div>
+    <div id="skills"></div>
+    <p>
+      Arrows = Move<br>
+      F = Fire<br>
+      S = Save<br>
+      L = Load
+    </p>
+  </div>
 
-<div id="hud">
-  <div id="stats"></div>
-  <div id="skills"></div>
-  <p>
-    ⬆⬇⬅➡ Move |
-    F Fireball |
-    H Heal |
-    R New Floor
-  </p>
-</div>
-
-<script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
-
