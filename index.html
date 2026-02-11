@@ -8,11 +8,13 @@
 
 <body>
 
-<h1>Pixel RPG</h1>
+<h1>Pixel Diablo RPG</h1>
 
 <div id="stats"></div>
 
-<canvas id="world" width="800" height="600"></canvas>
+<canvas id="world" width="1000" height="1000"></canvas>
+
+<div id="minimap"></div>
 
 <div class="ui">
 
@@ -28,7 +30,7 @@
 
 <div class="panel">
 <h3>Skill Tree</h3>
-<canvas id="skillTree" width="200" height="200"></canvas>
+<canvas id="skillTree" width="260" height="260"></canvas>
 </div>
 
 <div class="panel">
@@ -39,7 +41,6 @@
 <div class="panel">
 <button onclick="saveGame()">Save</button>
 <button onclick="loadGame()">Load</button>
-<button onclick="toggleEditor()">Editor</button>
 <button onclick="toggleMusic()">Music</button>
 </div>
 
