@@ -1,50 +1,48 @@
 body{
-background:#0d0d0d;
-color:#ddd;
+background:#0b0b0b;
+color:#d4c9a8;
 font-family:monospace;
 text-align:center;
 }
 
 canvas{
 background:black;
-border:2px solid #444;
+border:3px solid #3a2d1f;
 }
 
 .ui{
 display:flex;
 flex-wrap:wrap;
-gap:20px;
+gap:15px;
 justify-content:center;
 }
 
 .panel{
-background:#1a1a1a;
+background:#1a1410;
+border:2px solid #5c4326;
 padding:10px;
-border:2px solid #555;
-width:200px;
+width:220px;
+box-shadow:0 0 10px black inset;
 }
 
 .slot{
 width:50px;
 height:50px;
-border:1px solid #666;
+border:1px solid #6b522f;
 display:inline-flex;
 align-items:center;
 justify-content:center;
 margin:2px;
-background:#222;
+background:#2a1f17;
 cursor:pointer;
 }
 
-.equipSlot{
+#minimap{
+position:fixed;
+right:10px;
+top:10px;
+width:150px;
+height:150px;
 border:2px solid gold;
-}
-
-button{
-background:#333;
-color:white;
-border:none;
-padding:6px;
-margin:2px;
-cursor:pointer;
+background:black;
 }
