@@ -2,46 +2,45 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Pixel RPG Engine</title>
+<title>RPG Engine</title>
 <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<h1>Pixel Diablo RPG</h1>
+<div id="gameWrapper">
 
+<canvas id="game" width="1000" height="1000"></canvas>
+
+<!-- HUD -->
+<div id="hud">
+
+<div class="panel" id="statsPanel">
+<h3>STATS</h3>
 <div id="stats"></div>
+</div>
 
-<canvas id="world" width="1000" height="1000"></canvas>
-
-<div id="minimap"></div>
-
-<div class="ui">
-
-<div class="panel">
-<h3>Inventory</h3>
+<div class="panel" id="inventoryPanel">
+<h3>INVENTORY (I)</h3>
 <div id="inventoryGrid"></div>
 </div>
 
-<div class="panel">
-<h3>Equipment</h3>
-<div id="equipment"></div>
+<div class="panel" id="skillPanel">
+<h3>SKILLS (K)</h3>
+<canvas id="skillTree"></canvas>
 </div>
 
-<div class="panel">
-<h3>Skill Tree</h3>
-<canvas id="skillTree" width="260" height="260"></canvas>
+<div class="panel" id="questPanel">
+<h3>QUESTS</h3>
+<div id="questLog"></div>
 </div>
 
-<div class="panel">
-<h3>Quest Log</h3>
-<div id="quests"></div>
+<div class="panel" id="abilityBar"></div>
+
+<div id="controls">
+WASD Move • SPACE Attack • I Inventory • K Skills • E Talk
 </div>
 
-<div class="panel">
-<button onclick="saveGame()">Save</button>
-<button onclick="loadGame()">Load</button>
-<button onclick="toggleMusic()">Music</button>
 </div>
 
 </div>
