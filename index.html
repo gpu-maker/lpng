@@ -2,47 +2,20 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Browser RPG</title>
+<title>Pixel Knight Engine</title>
 <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<div id="gameContainer">
+<canvas id="game"></canvas>
 
-<canvas id="game" width="1000" height="1000"></canvas>
+<div id="hud"></div>
+<div id="inventory"></div>
+<div id="paperdoll"></div>
+<div id="skillTree"></div>
 
-<!-- HUD -->
-<div id="hud">
-<div id="stats">
-❤️ <span id="hp">100</span>
-✨ <span id="mana">50</span>
-🪙 <span id="gold">0</span>
-</div>
+<script type="module" src="./src/main.js"></script>
 
-<div id="controls">
-WASD Move | SPACE Attack | F Spell | I Inventory | E Shop | K Skills | ESC Pause
-</div>
-</div>
-
-<!-- UI PANELS -->
-<div id="inventory" class="panel hidden"></div>
-<div id="shop" class="panel hidden"></div>
-<div id="skills" class="panel hidden"></div>
-
-<div id="pauseMenu" class="panel hidden">
-<h2>Paused</h2>
-<p>WASD → move</p>
-<p>SPACE → attack</p>
-<p>F → spell</p>
-<p>I → inventory</p>
-<p>E → shop</p>
-<p>K → skill tree</p>
-<p>ESC → resume</p>
-</div>
-
-</div>
-
-<script src="script.js"></script>
 </body>
 </html>
