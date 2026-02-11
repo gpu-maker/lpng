@@ -1,27 +1,42 @@
-# ⚔️ Pixel Roguelike
+# Pixel Roguelike Engine
 
-A browser-based pixel roguelike built with pure JavaScript.
+A production-scale browser roguelike built in pure JavaScript.
+
+Runs locally — no server required.
 
 ## Features
-- 12x12 pixel grid
-- Procedural overworld & dungeon generation
-- Multiple enemy types with AI
-- Boss fights
-- Skill trees (melee, magic, stealth, ranged)
-- Save/load system
-- Sound & music
-- Designed to scale past 2000+ lines
+
+- Procedural world generation
+- Biome system
+- Sprite animation engine
+- Particle effects
+- Lighting + shadow engine with torch flicker
+- Inventory + equipment system
+- Skill system ready
+- Enemy AI with pathfinding
+- Modular production architecture
+- Expandable to 5000+ lines
 
 ## Controls
-Arrow keys — Move  
-Space — Attack (expandable)
+
+WASD — Move  
+Arrow Keys — Attack  
+I — Inventory  
+K — Skill Tree  
+
+## Run
+
+Open:
+
+index.html
+
+No installation required.
+
+## Project Structure
 
 ## Roadmap
-- Fog of war
-- Status effects
-- Multiple biomes
-- Permadeath modes
-- Steam build (Electron)
 
-## License
-MIT
+- More biomes
+- Boss system
+- Equipment visuals
+- Sound engine
