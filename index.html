@@ -2,17 +2,28 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Roguelike Adventure</title>
+<title>Pixel Roguelike</title>
 <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<div id="gameContainer">
-  <canvas id="game"></canvas>
+<div id="ui">
+  <div id="stats">
+    ❤️ <span id="health">100</span>
+    💰 <span id="gold">0</span>
+  </div>
+
+  <div id="controls">
+    Move: WASD |
+    Attack: Arrow Keys |
+    Potion: 1–5
+  </div>
 </div>
 
-<script src="script.js"></script>
+<canvas id="game"></canvas>
+<canvas id="minimap"></canvas>
 
+<script src="script.js"></script>
 </body>
 </html>
