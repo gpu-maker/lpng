@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>RPG Engine</title>
+<title>Pixel RPG Engine</title>
 <link rel="stylesheet" href="style.css">
 </head>
 
@@ -12,7 +12,6 @@
 
 <canvas id="game" width="1000" height="1000"></canvas>
 
-<!-- HUD -->
 <div id="hud">
 
 <div class="panel" id="statsPanel">
@@ -27,7 +26,7 @@
 
 <div class="panel" id="skillPanel">
 <h3>SKILLS (K)</h3>
-<canvas id="skillTree"></canvas>
+<canvas id="skillTree" width="300" height="300"></canvas>
 </div>
 
 <div class="panel" id="questPanel">
@@ -35,7 +34,12 @@
 <div id="questLog"></div>
 </div>
 
-<div class="panel" id="abilityBar"></div>
+<div class="panel" id="reputationPanel">
+<h3>REPUTATION</h3>
+<div id="reputationUI"></div>
+</div>
+
+<div id="abilityBar"></div>
 
 <div id="controls">
 WASD Move • SPACE Attack • I Inventory • K Skills • E Talk
@@ -43,8 +47,25 @@ WASD Move • SPACE Attack • I Inventory • K Skills • E Talk
 
 </div>
 
+<div id="editorPanel">
+<h3>MAP EDITOR</h3>
+<button id="toggleEditor">Toggle Editor</button>
+
+<select id="tileType">
+<option value="grass">Grass</option>
+<option value="water">Water</option>
+<option value="wall">Wall</option>
+<option value="village">Village</option>
+</select>
+
+<button id="saveMap">Save Map</button>
+<input type="file" id="loadMap" hidden>
+<button id="loadMapBtn">Load Map</button>
+</div>
+
 </div>
 
 <script src="script.js"></script>
+
 </body>
 </html>
