@@ -2,24 +2,42 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Roguelike RPG</title>
+<title>RPG</title>
 <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<div id="ui">
+<div id="hud">
   <div id="stats">
     ❤️ <span id="hp">100</span>
     💰 <span id="gold">0</span>
+    ⚡ <span id="mana">50</span>
   </div>
 
   <canvas id="game"></canvas>
   <canvas id="minimap"></canvas>
 </div>
 
+<!-- INVENTORY -->
+<div id="inventory" class="panel hidden">
+  <h3>Inventory</h3>
+  <div id="grid"></div>
+</div>
+
+<!-- SHOP -->
+<div id="shop" class="panel hidden">
+  <h3>Shop</h3>
+  <div id="shopItems"></div>
+</div>
+
+<!-- SKILL TREE -->
+<div id="skills" class="panel hidden">
+  <h3>Skills</h3>
+  <div id="skillTree"></div>
+</div>
+
 <script src="script.js"></script>
 
 </body>
 </html>
-
