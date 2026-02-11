@@ -1,415 +1,330 @@
-// =====================================
-// CONFIG
-// =====================================
+// ============================
+// RPG ENGINE — SINGLE FILE
+// ============================
 
-const size=100;
-const tileSize=10;
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("webgl") || canvas.getContext("2d");
 
-// =====================================
-// PLAYER + LEVEL SYSTEM
-// =====================================
+// fallback 2D
+const g = canvas.getContext("2d");
 
-let player={
-x:50,y:50,
-hp:100,maxHp:100,
-xp:0,level:1,statPoints:0,
-attack:10,armor:0,
-reputation:{village:0}
+
+// ============================
+// ECS SYSTEM
+// ============================
+
+class Entity {
+constructor(){
+this.id=Math.random();
+this.c={};
+}
+add(name,data){this.c[name]=data;return this;}
+get(name){return this.c[name];}
+}
+
+const ECS={
+entities:[],
+systems:[],
+add(e){this.entities.push(e);return e;}
 };
 
-function gainXP(v){
-player.xp+=v;
-if(player.xp>=player.level*50){
-player.level++;
-player.statPoints+=3;
-player.xp=0;
-}
-}
 
-// =====================================
-// WORLD + BIOMES + TOWNS
-// =====================================
+// ============================
+// PLAYER
+// ============================
 
+const player=ECS.add(new Entity()
+.add("pos",{x:500,y:500})
+.add("vel",{x:0,y:0})
+.add("stats",{hp:100,str:5,dex:5,int:5,level:1,xp:0})
+.add("anim",{state:"idle",frame:0})
+.add("inventory",{items:[]})
+.add("equipment",{weapon:null,armor:null})
+);
+
+
+// ============================
+// INPUT
+// ============================
+
+const keys={};
+window.onkeydown=e=>keys[e.key.toLowerCase()]=true;
+window.onkeyup=e=>keys[e.key.toLowerCase()]=false;
+
+
+// ============================
+// WORLD GENERATION
+// ============================
+
+const WORLD_SIZE=100;
 let world=[];
-let discovered=[];
 
 function generateWorld(){
-world=[];
-discovered=[];
-
-for(let y=0;y<size;y++){
-let row=[];
-let fog=[];
-for(let x=0;x<size;x++){
-
-let r=Math.random();
-if(r<.1) row.push("water");
-else if(r<.25) row.push("forest");
-else if(r<.3) row.push("desert");
-else row.push("grass");
-
-fog.push(false);
-}
-world.push(row);
-discovered.push(fog);
-}
-
-generateTowns();
-spawnEnemies();
-spawnBoss();
-}
-
-function generateTowns(){
-for(let i=0;i<5;i++){
-let x=Math.random()*size|0;
-let y=Math.random()*size|0;
-world[y][x]="town";
+for(let y=0;y<WORLD_SIZE;y++){
+world[y]=[];
+for(let x=0;x<WORLD_SIZE;x++){
+world[y][x]=Math.random()<.1?"water":"grass";
 }
 }
-
-// =====================================
-// CANVAS
-// =====================================
-
-const canvas=document.getElementById("world");
-const ctx=canvas.getContext("2d");
-
-// =====================================
-// LIGHTING
-// =====================================
-
-function lighting(){
-ctx.fillStyle="rgba(0,0,0,.85)";
-ctx.fillRect(0,0,canvas.width,canvas.height);
-
-let gx=player.x*tileSize;
-let gy=player.y*tileSize;
-
-let g=ctx.createRadialGradient(gx,gy,10,gx,gy,150);
-g.addColorStop(0,"rgba(0,0,0,0)");
-g.addColorStop(1,"rgba(0,0,0,.85)");
-
-ctx.globalCompositeOperation="destination-out";
-ctx.fillStyle=g;
-ctx.fillRect(gx-150,gy-150,300,300);
-ctx.globalCompositeOperation="source-over";
 }
+generateWorld();
 
-// =====================================
-// MINIMAP + FOG
-// =====================================
 
-const mini=document.getElementById("minimap");
+// ============================
+// INVENTORY UI
+// ============================
 
-function drawMinimap(){
-let m=mini.getContext?.("2d");
-if(!m){
-mini.innerHTML="";
-let c=document.createElement("canvas");
-c.width=150;c.height=150;
-mini.appendChild(c);
-return drawMinimap();
+const grid=document.getElementById("inventoryGrid");
+
+function createInventory(){
+for(let i=0;i<20;i++){
+const slot=document.createElement("div");
+slot.className="slot";
+slot.draggable=true;
+grid.appendChild(slot);
 }
-
-m.clearRect(0,0,150,150);
-
-for(let y=0;y<size;y++)
-for(let x=0;x<size;x++){
-if(!discovered[y][x]) continue;
-
-m.fillStyle="#666";
-m.fillRect(x*1.5,y*1.5,2,2);
 }
+createInventory();
 
-m.fillStyle="red";
-m.fillRect(player.x*1.5,player.y*1.5,3,3);
-}
 
-// =====================================
-// SKILL TREE (EXPANDED)
-// =====================================
+// ============================
+// SKILL TREE
+// ============================
 
-let skills={
-attack:0,
-defense:0,
-magic:0,
-archery:0,
-vitality:0
-};
+const skillCanvas=document.getElementById("skillTree");
+const sk=skillCanvas.getContext("2d");
 
-const skillNodes=[
-{x:130,y:30,type:"attack"},
-{x:50,y:100,type:"defense"},
-{x:210,y:100,type:"magic"},
-{x:80,y:200,type:"archery"},
-{x:180,y:200,type:"vitality"}
+const skills=[
+{x:50,y:50,name:"STR"},
+{x:150,y:50,name:"DEX"},
+{x:100,y:120,name:"INT"},
+{x:50,y:200,name:"Fire"},
+{x:150,y:200,name:"Ice"}
 ];
 
-const sCanvas=document.getElementById("skillTree");
-const sctx=sCanvas.getContext("2d");
-
 function drawSkillTree(){
-sctx.clearRect(0,0,260,260);
+sk.clearRect(0,0,300,250);
 
-sctx.strokeStyle="white";
-skillNodes.forEach((n,i)=>{
-if(i>0){
-sctx.beginPath();
-sctx.moveTo(skillNodes[0].x,skillNodes[0].y);
-sctx.lineTo(n.x,n.y);
-sctx.stroke();
-}
-});
+sk.beginPath();
+sk.moveTo(50,50);
+sk.lineTo(100,120);
+sk.lineTo(150,50);
+sk.stroke();
 
-skillNodes.forEach(n=>{
-sctx.fillStyle=skills[n.type]?"green":"gray";
-sctx.beginPath();
-sctx.arc(n.x,n.y,15,0,Math.PI*2);
-sctx.fill();
+skills.forEach(s=>{
+sk.fillStyle="gold";
+sk.beginPath();
+sk.arc(s.x,s.y,10,0,Math.PI*2);
+sk.fill();
 });
 }
-
-sCanvas.onclick=e=>{
-if(player.statPoints<=0)return;
-
-let r=sCanvas.getBoundingClientRect();
-let x=e.clientX-r.left,y=e.clientY-r.top;
-
-skillNodes.forEach(n=>{
-if(Math.hypot(x-n.x,y-n.y)<15){
-skills[n.type]++;
-player.statPoints--;
-}
-});
-
 drawSkillTree();
-};
 
-// =====================================
-// A* PATHFINDING
-// =====================================
 
-function findPath(sx,sy,tx,ty){
-let open=[[sx,sy]];
-let visited={};
+// ============================
+// QUEST SYSTEM
+// ============================
 
-while(open.length){
-let [x,y]=open.shift();
-if(x===tx&&y===ty) return [x,y];
+const quests=[
+{title:"Defeat the Boss",done:false},
+{title:"Visit Village",done:false}
+];
 
-[[1,0],[-1,0],[0,1],[0,-1]].forEach(d=>{
-let nx=x+d[0],ny=y+d[1];
-let key=nx+","+ny;
-if(!visited[key]&&world[ny]?.[nx]){
-visited[key]=true;
-open.push([nx,ny]);
+function updateQuestUI(){
+document.getElementById("questLog").innerHTML=
+quests.map(q=>`<div>${q.done?"✔":"◻"} ${q.title}</div>`).join("");
 }
-});
-}
-}
+updateQuestUI();
 
-// =====================================
-// ENEMIES + BOSS PHASES
-// =====================================
 
-let enemies=[];
-let boss=null;
+// ============================
+// LIGHTING ENGINE
+// ============================
 
-function spawnEnemies(){
-enemies=[];
-for(let i=0;i<15;i++)
-enemies.push({x:Math.random()*size|0,y:Math.random()*size|0,hp:30});
-}
+function drawLighting(){
+const grad=g.createRadialGradient(
+player.get("pos").x,
+player.get("pos").y,
+50,
+player.get("pos").x,
+player.get("pos").y,
+300
+);
 
-function spawnBoss(){
-boss={x:20,y:20,hp:200,phase:1};
+grad.addColorStop(0,"rgba(255,255,255,0)");
+grad.addColorStop(1,"rgba(0,0,0,.3)");
+
+g.fillStyle=grad;
+g.fillRect(0,0,1000,1000);
 }
 
-function updateEnemies(){
 
-enemies.forEach(e=>{
-let p=findPath(e.x,e.y,player.x,player.y);
-if(p){ if(e.x<player.x)e.x++; if(e.y<player.y)e.y++; }
+// ============================
+// PARTICLES
+// ============================
 
-if(e.x===player.x&&e.y===player.y){
-player.hp-=.2;
-}
-});
-
-if(boss){
-if(boss.hp<100)boss.phase=2;
-if(boss.hp<40)boss.phase=3;
-}
-}
-
-// =====================================
-// SPELL PROJECTILES + PARTICLES
-// =====================================
-
-let projectiles=[];
 let particles=[];
 
-function castSpell(){
-projectiles.push({x:player.x,y:player.y,dx:1,dy:0});
+function spawnParticle(x,y){
+particles.push({x,y,vx:Math.random()-0.5,vy:-1,life:30});
 }
 
-function updateProjectiles(){
-projectiles.forEach(p=>{
-p.x+=p.dx;p.y+=p.dy;
-
-particles.push({x:p.x,y:p.y,life:20});
-
-enemies.forEach(e=>{
-if(e.x===p.x&&e.y===p.y){
-e.hp-=20;
-gainXP(5);
-}
+function updateParticles(){
+particles.forEach(p=>{
+p.x+=p.vx;
+p.y+=p.vy;
+p.life--;
 });
-});
-
-particles.forEach(p=>p.life--);
-projectiles=projectiles.filter(p=>p.x<size);
 particles=particles.filter(p=>p.life>0);
 }
 
-// =====================================
-// QUEST + BRANCHING DIALOGUE
-// =====================================
-
-let quests=[
-{name:"Help village",progress:0,target:1}
-];
-
-let dialogue={
-start:{
-text:"Will you help our village?",
-choices:[
-{text:"Yes",next:"accept"},
-{text:"No",next:"leave"}
-]
-},
-accept:{text:"Thank you!",end:true},
-leave:{text:"We remember this...",end:true}
-};
-
-function talk(){
-let node=dialogue.start;
-let choice=prompt(node.text+" (yes/no)");
-
-if(choice==="yes"){
-player.reputation.village+=5;
-quests[0].progress=1;
-}else{
-player.reputation.village-=5;
-}
+function drawParticles(){
+g.fillStyle="orange";
+particles.forEach(p=>g.fillRect(p.x,p.y,3,3));
 }
 
-// =====================================
-// DRAW
-// =====================================
 
-function drawTile(x,y,t){
-let c={
-grass:"#1f6b2a",
-water:"#1b3faa",
-forest:"#0d4f1b",
-desert:"#b99a5e",
-town:"#c9b27d"
-}[t]||"#444";
+// ============================
+// PATHFINDING A* BASE
+// ============================
 
-ctx.fillStyle=c;
-ctx.fillRect(x*tileSize,y*tileSize,tileSize,tileSize);
+function heuristic(a,b){
+return Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
 }
 
-function draw(){
 
-ctx.clearRect(0,0,canvas.width,canvas.height);
+// ============================
+// ENEMY + BOSS
+// ============================
 
-for(let y=0;y<size;y++)
-for(let x=0;x<size;x++){
-if(Math.hypot(x-player.x,y-player.y)<12){
-discovered[y][x]=true;
-drawTile(x,y,world[y][x]);
-}
-}
-
-// particles
-ctx.fillStyle="orange";
-particles.forEach(p=>
-ctx.fillRect(p.x*tileSize,p.y*tileSize,4,4)
+const enemy=ECS.add(new Entity()
+.add("pos",{x:200,y:200})
+.add("hp",100)
+.add("phase",1)
 );
 
-// enemies
-ctx.fillStyle="red";
-enemies.forEach(e=>
-ctx.fillRect(e.x*tileSize,e.y*tileSize,10,10)
-);
 
-// boss
-if(boss){
-ctx.fillStyle="purple";
-ctx.fillRect(boss.x*tileSize,boss.y*tileSize,12,12);
+// ============================
+// COMBAT
+// ============================
+
+function attack(){
+spawnParticle(player.get("pos").x,player.get("pos").y);
+
+const dx=enemy.get("pos").x-player.get("pos").x;
+const dy=enemy.get("pos").y-player.get("pos").y;
+
+if(Math.hypot(dx,dy)<50){
+enemy.c.hp-=player.get("stats").str;
+
+if(enemy.c.hp<50) enemy.c.phase=2;
+}
 }
 
-// player
-ctx.fillStyle="cyan";
-ctx.fillRect(player.x*tileSize,player.y*tileSize,10,10);
 
-lighting();
-drawMinimap();
+// ============================
+// PLAYER MOVEMENT + ANIMATION
+// ============================
 
-stats.innerText=
-`HP:${player.hp.toFixed(0)} LV:${player.level} SP:${player.statPoints} REP:${player.reputation.village}`;
+function updatePlayer(){
+const pos=player.get("pos");
 
-updateEnemies();
-updateProjectiles();
+if(keys["w"])pos.y-=3;
+if(keys["s"])pos.y+=3;
+if(keys["a"])pos.x-=3;
+if(keys["d"])pos.x+=3;
 
-requestAnimationFrame(draw);
+if(keys[" "])attack();
 }
 
-// =====================================
-// INPUT
-// =====================================
 
-document.addEventListener("keydown",e=>{
-if(e.key==="w")player.y--;
-if(e.key==="s")player.y++;
-if(e.key==="a")player.x--;
-if(e.key==="d")player.x++;
-if(e.key===" ")castSpell();
-if(e.key==="e")talk();
-});
+// ============================
+// DRAW WORLD
+// ============================
 
-// =====================================
+function drawWorld(){
+for(let y=0;y<20;y++){
+for(let x=0;x<20;x++){
+g.fillStyle=world[y][x]=="water"?"#55f":"#5a5";
+g.fillRect(x*50,y*50,50,50);
+}
+}
+}
+
+
+// ============================
+// DRAW ENTITIES (PIXEL CHARACTER)
+// ============================
+
+function drawPlayer(){
+const p=player.get("pos");
+
+g.fillStyle="#000";
+g.fillRect(p.x,p.y,10,10);
+g.fillStyle="#ccc";
+g.fillRect(p.x+2,p.y+2,6,6);
+}
+
+function drawEnemy(){
+const p=enemy.get("pos");
+
+g.fillStyle=enemy.get("phase")==1?"red":"purple";
+g.fillRect(p.x,p.y,20,20);
+
+g.fillStyle="black";
+g.fillRect(p.x,p.y-10,enemy.c.hp,5);
+}
+
+
+// ============================
 // SAVE / LOAD
-// =====================================
+// ============================
 
 function saveGame(){
-localStorage.setItem("save",
-JSON.stringify({player,world,skills,quests}));
+localStorage.setItem("save",JSON.stringify(player));
 }
 
 function loadGame(){
-let s=JSON.parse(localStorage.getItem("save"));
-if(!s)return;
-Object.assign(player,s.player);
-world=s.world;
-skills=s.skills;
-quests=s.quests;
+const data=localStorage.getItem("save");
+if(data) Object.assign(player,JSON.parse(data));
 }
 
-// =====================================
-// SOUND
-// =====================================
 
-let music=new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_9a2c4b.mp3");
-music.loop=true;
-function toggleMusic(){music.paused?music.play():music.pause();}
+// ============================
+// STATS UI
+// ============================
 
-// =====================================
-// START
-// =====================================
+function updateStats(){
+const s=player.get("stats");
+document.getElementById("stats").innerHTML=`
+HP: ${s.hp}<br>
+STR: ${s.str}<br>
+DEX: ${s.dex}<br>
+INT: ${s.int}<br>
+LVL: ${s.level}
+`;
+}
 
-generateWorld();
-drawSkillTree();
-draw();
+
+// ============================
+// GAME LOOP
+// ============================
+
+function loop(){
+
+g.clearRect(0,0,1000,1000);
+
+updatePlayer();
+updateParticles();
+
+drawWorld();
+drawEnemy();
+drawPlayer();
+drawParticles();
+drawLighting();
+updateStats();
+
+requestAnimationFrame(loop);
+}
+
+loop();
