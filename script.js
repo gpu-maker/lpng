@@ -1,328 +1,247 @@
-// ============================
-// RPG ENGINE — SINGLE FILE
-// ============================
+// =====================================
+// PIXEL RPG ENGINE (FULL COMBINED)
+// =====================================
 
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("webgl") || canvas.getContext("2d");
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 
-// fallback 2D
-const g = canvas.getContext("2d");
+// =====================================
+// WORLD MAP
+// =====================================
 
+const tileSize=20;
+const mapSize=50;
 
-// ============================
-// ECS SYSTEM
-// ============================
+const WorldMap=[];
 
-class Entity {
-constructor(){
-this.id=Math.random();
-this.c={};
+for(let y=0;y<mapSize;y++){
+WorldMap[y]=[];
+for(let x=0;x<mapSize;x++){
+WorldMap[y][x]=Math.random()<0.1?"water":"grass";
 }
-add(name,data){this.c[name]=data;return this;}
-get(name){return this.c[name];}
 }
 
-const ECS={
-entities:[],
-systems:[],
-add(e){this.entities.push(e);return e;}
+// =====================================
+// PLAYER
+// =====================================
+
+const player={
+x:500,
+y:500,
+hp:100,
+str:5,
+dex:5,
+int:5,
+level:1,
+equipment:{armor:false,helmet:false},
+inventory:[]
 };
 
-
-// ============================
-// PLAYER
-// ============================
-
-const player=ECS.add(new Entity()
-.add("pos",{x:500,y:500})
-.add("vel",{x:0,y:0})
-.add("stats",{hp:100,str:5,dex:5,int:5,level:1,xp:0})
-.add("anim",{state:"idle",frame:0})
-.add("inventory",{items:[]})
-.add("equipment",{weapon:null,armor:null})
-);
-
-
-// ============================
+// =====================================
 // INPUT
-// ============================
+// =====================================
 
 const keys={};
 window.onkeydown=e=>keys[e.key.toLowerCase()]=true;
 window.onkeyup=e=>keys[e.key.toLowerCase()]=false;
 
+// =====================================
+// MAP EDITOR
+// =====================================
 
-// ============================
-// WORLD GENERATION
-// ============================
+const MapEditor={
+enabled:false
+};
 
-const WORLD_SIZE=100;
-let world=[];
+document.getElementById("toggleEditor").onclick=()=>{
+MapEditor.enabled=!MapEditor.enabled;
+};
 
-function generateWorld(){
-for(let y=0;y<WORLD_SIZE;y++){
-world[y]=[];
-for(let x=0;x<WORLD_SIZE;x++){
-world[y][x]=Math.random()<.1?"water":"grass";
-}
-}
-}
-generateWorld();
+canvas.addEventListener("click",e=>{
 
+if(!MapEditor.enabled) return;
 
-// ============================
+const rect=canvas.getBoundingClientRect();
+const x=Math.floor((e.clientX-rect.left)/tileSize);
+const y=Math.floor((e.clientY-rect.top)/tileSize);
+
+const type=document.getElementById("tileType").value;
+if(WorldMap[y])WorldMap[y][x]=type;
+
+});
+
+// save map
+document.getElementById("saveMap").onclick=()=>{
+const data=JSON.stringify(WorldMap);
+const blob=new Blob([data],{type:"application/json"});
+const a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="map.json";
+a.click();
+};
+
+// load map
+document.getElementById("loadMapBtn").onclick=()=>{
+document.getElementById("loadMap").click();
+};
+
+document.getElementById("loadMap").onchange=e=>{
+const file=e.target.files[0];
+const reader=new FileReader();
+reader.onload=()=>{
+const data=JSON.parse(reader.result);
+for(let y=0;y<data.length;y++)WorldMap[y]=data[y];
+};
+reader.readAsText(file);
+};
+
+// =====================================
 // INVENTORY UI
-// ============================
+// =====================================
 
 const grid=document.getElementById("inventoryGrid");
 
-function createInventory(){
 for(let i=0;i<20;i++){
-const slot=document.createElement("div");
-slot.className="slot";
-slot.draggable=true;
-grid.appendChild(slot);
+const s=document.createElement("div");
+s.className="slot";
+grid.appendChild(s);
 }
-}
-createInventory();
 
-
-// ============================
+// =====================================
 // SKILL TREE
-// ============================
+// =====================================
 
-const skillCanvas=document.getElementById("skillTree");
-const sk=skillCanvas.getContext("2d");
+const sk=document.getElementById("skillTree").getContext("2d");
 
-const skills=[
-{x:50,y:50,name:"STR"},
-{x:150,y:50,name:"DEX"},
-{x:100,y:120,name:"INT"},
-{x:50,y:200,name:"Fire"},
-{x:150,y:200,name:"Ice"}
+function drawSkills(){
+sk.clearRect(0,0,300,300);
+
+const nodes=[
+{x:50,y:50},{x:150,y:50},{x:100,y:120},{x:50,y:200},{x:150,y:200}
 ];
 
-function drawSkillTree(){
-sk.clearRect(0,0,300,250);
-
+sk.strokeStyle="white";
 sk.beginPath();
 sk.moveTo(50,50);
 sk.lineTo(100,120);
 sk.lineTo(150,50);
 sk.stroke();
 
-skills.forEach(s=>{
+nodes.forEach(n=>{
 sk.fillStyle="gold";
 sk.beginPath();
-sk.arc(s.x,s.y,10,0,Math.PI*2);
+sk.arc(n.x,n.y,8,0,Math.PI*2);
 sk.fill();
 });
 }
-drawSkillTree();
 
-
-// ============================
+// =====================================
 // QUEST SYSTEM
-// ============================
+// =====================================
 
 const quests=[
-{title:"Defeat the Boss",done:false},
-{title:"Visit Village",done:false}
+{title:"Defeat Boss",done:false},
+{title:"Help Village",done:false}
 ];
 
 function updateQuestUI(){
 document.getElementById("questLog").innerHTML=
-quests.map(q=>`<div>${q.done?"✔":"◻"} ${q.title}</div>`).join("");
-}
-updateQuestUI();
-
-
-// ============================
-// LIGHTING ENGINE
-// ============================
-
-function drawLighting(){
-const grad=g.createRadialGradient(
-player.get("pos").x,
-player.get("pos").y,
-50,
-player.get("pos").x,
-player.get("pos").y,
-300
-);
-
-grad.addColorStop(0,"rgba(255,255,255,0)");
-grad.addColorStop(1,"rgba(0,0,0,.3)");
-
-g.fillStyle=grad;
-g.fillRect(0,0,1000,1000);
+quests.map(q=>`${q.done?"✔":"◻"} ${q.title}`).join("<br>");
 }
 
+// =====================================
+// REPUTATION
+// =====================================
 
-// ============================
-// PARTICLES
-// ============================
+const factions={
+village:0,
+guild:0,
+bandits:-20
+};
 
-let particles=[];
-
-function spawnParticle(x,y){
-particles.push({x,y,vx:Math.random()-0.5,vy:-1,life:30});
+function updateReputationUI(){
+document.getElementById("reputationUI").innerHTML=
+Object.entries(factions)
+.map(([k,v])=>`${k}: ${v}`)
+.join("<br>");
 }
 
-function updateParticles(){
-particles.forEach(p=>{
-p.x+=p.vx;
-p.y+=p.vy;
-p.life--;
-});
-particles=particles.filter(p=>p.life>0);
-}
+// =====================================
+// RENDER WORLD
+// =====================================
 
-function drawParticles(){
-g.fillStyle="orange";
-particles.forEach(p=>g.fillRect(p.x,p.y,3,3));
-}
+function renderWorld(){
 
+for(let y=0;y<mapSize;y++){
+for(let x=0;x<mapSize;x++){
 
-// ============================
-// PATHFINDING A* BASE
-// ============================
+const tile=WorldMap[y][x];
 
-function heuristic(a,b){
-return Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
-}
+if(tile==="grass") ctx.fillStyle="#0f0";
+if(tile==="water") ctx.fillStyle="#00f";
+if(tile==="wall") ctx.fillStyle="#777";
+if(tile==="village") ctx.fillStyle="#ff0";
 
-
-// ============================
-// ENEMY + BOSS
-// ============================
-
-const enemy=ECS.add(new Entity()
-.add("pos",{x:200,y:200})
-.add("hp",100)
-.add("phase",1)
-);
-
-
-// ============================
-// COMBAT
-// ============================
-
-function attack(){
-spawnParticle(player.get("pos").x,player.get("pos").y);
-
-const dx=enemy.get("pos").x-player.get("pos").x;
-const dy=enemy.get("pos").y-player.get("pos").y;
-
-if(Math.hypot(dx,dy)<50){
-enemy.c.hp-=player.get("stats").str;
-
-if(enemy.c.hp<50) enemy.c.phase=2;
-}
-}
-
-
-// ============================
-// PLAYER MOVEMENT + ANIMATION
-// ============================
-
-function updatePlayer(){
-const pos=player.get("pos");
-
-if(keys["w"])pos.y-=3;
-if(keys["s"])pos.y+=3;
-if(keys["a"])pos.x-=3;
-if(keys["d"])pos.x+=3;
-
-if(keys[" "])attack();
-}
-
-
-// ============================
-// DRAW WORLD
-// ============================
-
-function drawWorld(){
-for(let y=0;y<20;y++){
-for(let x=0;x<20;x++){
-g.fillStyle=world[y][x]=="water"?"#55f":"#5a5";
-g.fillRect(x*50,y*50,50,50);
+ctx.fillRect(x*tileSize,y*tileSize,tileSize,tileSize);
 }
 }
 }
 
-
-// ============================
-// DRAW ENTITIES (PIXEL CHARACTER)
-// ============================
+// =====================================
+// DRAW PLAYER (PIXEL)
+// =====================================
 
 function drawPlayer(){
-const p=player.get("pos");
 
-g.fillStyle="#000";
-g.fillRect(p.x,p.y,10,10);
-g.fillStyle="#ccc";
-g.fillRect(p.x+2,p.y+2,6,6);
+ctx.fillStyle="#fff";
+ctx.fillRect(player.x,player.y,8,8);
+
+if(player.equipment.armor){
+ctx.fillStyle="#44f";
+ctx.fillRect(player.x,player.y,8,8);
 }
 
-function drawEnemy(){
-const p=enemy.get("pos");
-
-g.fillStyle=enemy.get("phase")==1?"red":"purple";
-g.fillRect(p.x,p.y,20,20);
-
-g.fillStyle="black";
-g.fillRect(p.x,p.y-10,enemy.c.hp,5);
+if(player.equipment.helmet){
+ctx.fillStyle="#aaa";
+ctx.fillRect(player.x,player.y-3,8,3);
+}
 }
 
+// =====================================
+// MOVEMENT
+// =====================================
 
-// ============================
-// SAVE / LOAD
-// ============================
-
-function saveGame(){
-localStorage.setItem("save",JSON.stringify(player));
+function playerControl(){
+if(keys.w)player.y-=2;
+if(keys.s)player.y+=2;
+if(keys.a)player.x-=2;
+if(keys.d)player.x+=2;
 }
 
-function loadGame(){
-const data=localStorage.getItem("save");
-if(data) Object.assign(player,JSON.parse(data));
-}
-
-
-// ============================
+// =====================================
 // STATS UI
-// ============================
+// =====================================
 
 function updateStats(){
-const s=player.get("stats");
-document.getElementById("stats").innerHTML=`
-HP: ${s.hp}<br>
-STR: ${s.str}<br>
-DEX: ${s.dex}<br>
-INT: ${s.int}<br>
-LVL: ${s.level}
-`;
+document.getElementById("stats").innerHTML=
+`HP:${player.hp}<br>STR:${player.str}<br>DEX:${player.dex}<br>INT:${player.int}`;
 }
 
-
-// ============================
+// =====================================
 // GAME LOOP
-// ============================
+// =====================================
 
 function loop(){
 
-g.clearRect(0,0,1000,1000);
+ctx.clearRect(0,0,canvas.width,canvas.height);
 
-updatePlayer();
-updateParticles();
-
-drawWorld();
-drawEnemy();
+playerControl();
+renderWorld();
 drawPlayer();
-drawParticles();
-drawLighting();
+drawSkills();
 updateStats();
+updateQuestUI();
+updateReputationUI();
 
 requestAnimationFrame(loop);
 }
