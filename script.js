@@ -22,70 +22,20 @@ mini.height=200
 const mctx=mini.getContext("2d")
 
 /* ===============================
-ASSET LOADER
-=============================== */
-
-const Assets={
- images:{},
- sounds:{},
-
- loadImage(name,src){
-  return new Promise(r=>{
-   const img=new Image()
-   img.src=src
-   img.onload=()=>{Assets.images[name]=img;r()}
-  })
- },
-
- loadSound(name,src){
-  const a=new Audio(src)
-  Assets.sounds[name]=a
- }
-}
-
-/* ===============================
-BIOMES
-=============================== */
-
-const BIOMES=[
- {name:"grass",color:"#3cb043",enemy:"slime"},
- {name:"desert",color:"#e4d96f",enemy:"scorpion"},
- {name:"snow",color:"#ccefff",enemy:"ice"},
- {name:"forest",color:"#1e7a1e",enemy:"wolf"}
-]
-
-/* ===============================
-WORLD GENERATOR 100x100
-=============================== */
-
-let world=[]
-
-function generateWorld(){
- for(let y=0;y<WORLD_SIZE;y++){
-  world[y]=[]
-  for(let x=0;x<WORLD_SIZE;x++){
-   const b=BIOMES[Math.floor(Math.random()*BIOMES.length)]
-   world[y][x]={biome:b,enemies:[]}
-  }
- }
-
- // spawn village
- world[50][50].village=true
-}
-
-/* ===============================
-PLAYER
+PLAYER + RPG STATS
 =============================== */
 
 const player={
  x:50,y:50,
  px:0,py:0,
- speed:3,
+ hp:100,maxHp:100,
+ mana:50,
+ gold:200,
+ attack:10,
+ defense:0,
  dir:0,
  frame:0,
- hp:100,
- gold:0,
- torchtime:0
+ equipment:{weapon:null,armor:null}
 }
 
 /* ===============================
@@ -93,166 +43,221 @@ INPUT
 =============================== */
 
 const keys={}
-addEventListener("keydown",e=>keys[e.key]=true)
+addEventListener("keydown",e=>{
+ keys[e.key]=true
+
+ if(e.key==="i")toggle("inventory")
+ if(e.key==="k")toggle("skills")
+ if(e.key==="e")toggle("shop")
+})
 addEventListener("keyup",e=>keys[e.key]=false)
 
-/* ===============================
-PARTICLES
-=============================== */
-
-const particles=[]
-
-function spawnParticle(x,y,color){
- particles.push({x,y,vx:Math.random()-0.5,vy:Math.random()-0.5,life:30,color})
+function toggle(id){
+ document.getElementById(id).classList.toggle("hidden")
 }
 
-function updateParticles(){
- for(let i=particles.length-1;i>=0;i--){
-  const p=particles[i]
-  p.x+=p.vx
-  p.y+=p.vy
-  p.life--
-  if(p.life<=0)particles.splice(i,1)
+/* ===============================
+DIABLO LOOT SYSTEM
+=============================== */
+
+const AFFIXES=[
+ {name:"Strong",attack:5},
+ {name:"Guarded",defense:5},
+ {name:"Vampiric",lifeSteal:2}
+]
+
+function rollItem(){
+ const aff=AFFIXES[Math.floor(Math.random()*AFFIXES.length)]
+ return{
+  name:aff.name+" Sword",
+  ...aff
  }
 }
 
-function drawParticles(){
- particles.forEach(p=>{
-  ctx.fillStyle=p.color
-  ctx.fillRect(p.x,p.y,3,3)
- })
-}
-
 /* ===============================
-PROJECTILES (BOW + SPELL)
+INVENTORY GRID + DRAG DROP
 =============================== */
 
-const projectiles=[]
+const inventory=new Array(25).fill(null)
+inventory[0]=rollItem()
 
-function shoot(){
- projectiles.push({
-  x:player.px+16,
-  y:player.py+16,
-  vx:Math.cos(player.dir)*8,
-  vy:Math.sin(player.dir)*8
+const grid=document.getElementById("grid")
+
+function drawInventory(){
+ grid.innerHTML=""
+ inventory.forEach((item,i)=>{
+  const d=document.createElement("div")
+  d.className="slot"
+  d.draggable=true
+  d.dataset.index=i
+  d.textContent=item?item.name[0]:""
+
+  d.ondragstart=e=>e.dataTransfer.setData("i",i)
+
+  d.ondrop=e=>{
+   const from=e.dataTransfer.getData("i")
+   ;[inventory[i],inventory[from]]=[inventory[from],inventory[i]]
+   drawInventory()
+  }
+
+  d.ondragover=e=>e.preventDefault()
+  grid.appendChild(d)
  })
- Assets.sounds.shoot?.play()
 }
 
-function updateProjectiles(){
- for(let i=projectiles.length-1;i>=0;i--){
-  const p=projectiles[i]
-  p.x+=p.vx
-  p.y+=p.vy
-  spawnParticle(p.x,p.y,"orange")
-  if(p.x<0||p.y<0||p.x>SCREEN_W||p.y>SCREEN_H)
-   projectiles.splice(i,1)
- }
-}
-
-function drawProjectiles(){
- ctx.fillStyle="yellow"
- projectiles.forEach(p=>ctx.fillRect(p.x,p.y,6,6))
-}
+drawInventory()
 
 /* ===============================
-ENEMIES + BOSSES
+SHOP SYSTEM + BLACKSMITH
+=============================== */
+
+const shopItems=[
+ {name:"Sword",price:100,attack:5},
+ {name:"Armor",price:120,defense:5},
+ {name:"Potion",price:20}
+]
+
+const shopUI=document.getElementById("shopItems")
+
+function drawShop(){
+ shopUI.innerHTML=""
+ shopItems.forEach(item=>{
+  const b=document.createElement("button")
+  b.textContent=item.name+" $"+item.price
+  b.onclick=()=>{
+   if(player.gold>=item.price){
+    player.gold-=item.price
+    inventory.push(item)
+    updateHUD()
+   }
+  }
+  shopUI.appendChild(b)
+ })
+}
+
+drawShop()
+
+/* ===============================
+SKILL TREE
+=============================== */
+
+const skills=[
+ {name:"Power",level:0,max:5,apply:()=>player.attack++},
+ {name:"Vitality",level:0,max:5,apply:()=>player.maxHp+=10}
+]
+
+const skillTree=document.getElementById("skillTree")
+
+function drawSkills(){
+ skillTree.innerHTML=""
+ skills.forEach(s=>{
+  const b=document.createElement("button")
+  b.textContent=s.name+" "+s.level+"/"+s.max
+  b.onclick=()=>{
+   if(s.level<s.max){
+    s.level++
+    s.apply()
+    drawSkills()
+   }
+  }
+  skillTree.appendChild(b)
+ })
+}
+drawSkills()
+
+/* ===============================
+ENEMIES + HEALTH BARS
 =============================== */
 
 const enemies=[]
 
-function spawnEnemy(x,y,type){
- enemies.push({x,y,type,hp:30})
+function spawnEnemy(x,y){
+ enemies.push({x,y,hp:40,maxHp:40})
 }
 
-function spawnBoss(x,y){
- enemies.push({x,y,type:"boss",hp:200,phase:1})
-}
+spawnEnemy(300,300)
 
 function updateEnemies(){
  enemies.forEach(e=>{
   const dx=player.px-e.x
   const dy=player.py-e.y
   const d=Math.hypot(dx,dy)
-  if(d<200){
-   e.x+=dx/d
-   e.y+=dy/d
-  }
-
-  if(e.type==="boss" && e.hp<100) e.phase=2
+  if(d<200){e.x+=dx/d;e.y+=dy/d}
  })
 }
 
 function drawEnemies(){
  enemies.forEach(e=>{
-  ctx.fillStyle=e.type==="boss"?"red":"purple"
+  ctx.fillStyle="purple"
   ctx.fillRect(e.x,e.y,32,32)
+
+  ctx.fillStyle="red"
+  ctx.fillRect(e.x,e.y-5,32*(e.hp/e.maxHp),4)
  })
 }
 
 /* ===============================
-LIGHTING + SHADOW ENGINE
+DAMAGE NUMBERS
 =============================== */
 
-function drawLighting(){
- const g=ctx.createRadialGradient(
-  player.px+16,player.py+16,20,
-  player.px+16,player.py+16,200
- )
- g.addColorStop(0,"rgba(0,0,0,0)")
- g.addColorStop(1,"rgba(0,0,0,.9)")
+function damageText(x,y,val){
+ const d=document.createElement("div")
+ d.className="damage"
+ d.style.left=x+"px"
+ d.style.top=y+"px"
+ d.textContent=val
+ document.body.appendChild(d)
 
- ctx.fillStyle=g
- ctx.fillRect(0,0,SCREEN_W,SCREEN_H)
+ let t=0
+ const i=setInterval(()=>{
+  t++
+  d.style.top=(y-t)+"px"
+  if(t>30){clearInterval(i);d.remove()}
+ },16)
 }
 
 /* ===============================
-MINIMAP RADAR
+8 DIRECTION ATTACK
 =============================== */
 
-function drawMinimap(){
- mctx.clearRect(0,0,200,200)
-
- const scale=200/WORLD_SIZE
-
- for(let y=0;y<WORLD_SIZE;y++){
-  for(let x=0;x<WORLD_SIZE;x++){
-   mctx.fillStyle=world[y][x].biome.color
-   mctx.fillRect(x*scale,y*scale,scale,scale)
+function attack(){
+ enemies.forEach(e=>{
+  const d=Math.hypot(e.x-player.px,e.y-player.py)
+  if(d<50){
+   e.hp-=player.attack
+   damageText(e.x,e.y,player.attack)
   }
+ })
+}
+
+/* ===============================
+PROCEDURAL DUNGEON
+=============================== */
+
+let dungeon=[]
+
+function generateDungeon(){
+ dungeon=[]
+ for(let y=0;y<20;y++){
+  dungeon[y]=[]
+  for(let x=0;x<20;x++)
+   dungeon[y][x]=Math.random()<0.4?1:0
  }
-
- mctx.fillStyle="white"
- mctx.fillRect(player.x*scale,player.y*scale,3,3)
 }
 
 /* ===============================
-SAVE / LOAD
+WORLD + BIOMES
 =============================== */
 
-function saveGame(){
- localStorage.setItem("rpgSave",JSON.stringify(player))
-}
+const BIOMES=["#3cb043","#e4d96f","#ccefff","#1e7a1e"]
+let world=[]
 
-function loadGame(){
- const s=localStorage.getItem("rpgSave")
- if(s)Object.assign(player,JSON.parse(s))
-}
-
-/* ===============================
-PLAYER MOVEMENT + ANIMATION
-=============================== */
-
-function updatePlayer(){
- if(keys["w"]){player.py-=player.speed;player.dir=-Math.PI/2}
- if(keys["s"]){player.py+=player.speed;player.dir=Math.PI/2}
- if(keys["a"]){player.px-=player.speed;player.dir=Math.PI}
- if(keys["d"]){player.px+=player.speed;player.dir=0}
-
- if(keys[" "])shoot()
- if(keys["f"])player.torchtime=200
-
- player.frame+=0.1
+function generateWorld(){
+ for(let y=0;y<WORLD_SIZE;y++){
+  world[y]=[]
+  for(let x=0;x<WORLD_SIZE;x++)
+   world[y][x]={color:BIOMES[Math.random()*BIOMES.length|0]}
+ }
 }
 
 /* ===============================
@@ -260,46 +265,76 @@ DRAW WORLD
 =============================== */
 
 function drawWorld(){
- const tileX=Math.floor(player.px/TILE)
- const tileY=Math.floor(player.py/TILE)
+ const tx=Math.floor(player.px/TILE)
+ const ty=Math.floor(player.py/TILE)
 
  for(let y=-10;y<10;y++){
   for(let x=-13;x<13;x++){
-   const wx=tileX+x
-   const wy=tileY+y
-   if(wx<0||wy<0||wx>=WORLD_SIZE||wy>=WORLD_SIZE)continue
+   const wx=tx+x
+   const wy=ty+y
+   if(!world[wy]||!world[wy][wx])continue
 
-   const b=world[wy][wx]
-   ctx.fillStyle=b.biome.color
-   ctx.fillRect(
-    x*TILE+SCREEN_W/2,
-    y*TILE+SCREEN_H/2,
-    TILE,TILE
-   )
-
-   if(b.village){
-    ctx.fillStyle="brown"
-    ctx.fillRect(x*TILE+SCREEN_W/2,y*TILE+SCREEN_H/2,20,20)
-   }
+   ctx.fillStyle=world[wy][wx].color
+   ctx.fillRect(x*TILE+SCREEN_W/2,y*TILE+SCREEN_H/2,TILE,TILE)
   }
  }
 }
 
 /* ===============================
-DRAW PLAYER (SPRITE SHEET)
+MINIMAP
+=============================== */
+
+function drawMinimap(){
+ const scale=200/WORLD_SIZE
+ mctx.clearRect(0,0,200,200)
+
+ for(let y=0;y<WORLD_SIZE;y++)
+  for(let x=0;x<WORLD_SIZE;x++){
+   mctx.fillStyle=world[y][x].color
+   mctx.fillRect(x*scale,y*scale,scale,scale)
+  }
+
+ mctx.fillStyle="white"
+ mctx.fillRect(player.x*scale,player.y*scale,3,3)
+}
+
+/* ===============================
+HUD
+=============================== */
+
+function updateHUD(){
+ hp.textContent=player.hp
+ gold.textContent=player.gold
+ mana.textContent=player.mana
+}
+
+/* ===============================
+PLAYER MOVEMENT
+=============================== */
+
+function updatePlayer(){
+ if(keys.w){player.py-=3;player.dir=0}
+ if(keys.s){player.py+=3;player.dir=4}
+ if(keys.a){player.px-=3;player.dir=6}
+ if(keys.d){player.px+=3;player.dir=2}
+
+ if(keys[" "])attack()
+
+ player.frame+=0.2
+}
+
+/* ===============================
+DRAW PLAYER + EQUIPMENT VISUAL
 =============================== */
 
 function drawPlayer(){
- const img=Assets.images.knight
- if(!img)return
+ ctx.fillStyle="silver"
+ ctx.fillRect(SCREEN_W/2-16,SCREEN_H/2-16,32,32)
 
- const frame=Math.floor(player.frame)%4
- ctx.drawImage(
-  img,
-  frame*32,0,32,32,
-  SCREEN_W/2-16,SCREEN_H/2-16,
-  32,32
- )
+ if(player.equipment.weapon){
+  ctx.fillStyle="yellow"
+  ctx.fillRect(SCREEN_W/2+10,SCREEN_H/2,10,4)
+ }
 }
 
 /* ===============================
@@ -310,17 +345,13 @@ function loop(){
  ctx.clearRect(0,0,SCREEN_W,SCREEN_H)
 
  updatePlayer()
- updateParticles()
- updateProjectiles()
  updateEnemies()
 
  drawWorld()
  drawEnemies()
- drawProjectiles()
  drawPlayer()
- drawParticles()
- drawLighting()
  drawMinimap()
+ updateHUD()
 
  requestAnimationFrame(loop)
 }
@@ -329,20 +360,6 @@ function loop(){
 INIT
 =============================== */
 
-async function init(){
- await Assets.loadImage("knight","assets/knight.png")
- Assets.loadSound("shoot","assets/shoot.wav")
-
- generateWorld()
- loadGame()
-
- spawnEnemy(200,200,"slime")
- spawnBoss(400,300)
-
- loop()
-}
-
-init()
-
-setInterval(saveGame,5000)
-
+generateWorld()
+generateDungeon()
+loop()
