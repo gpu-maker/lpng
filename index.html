@@ -2,20 +2,46 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Pixel Knight Engine</title>
+<title>Pixel Quest RPG</title>
 <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<canvas id="game"></canvas>
+<div id="game">
 
-<div id="hud"></div>
-<div id="inventory"></div>
-<div id="paperdoll"></div>
-<div id="skillTree"></div>
+<h1>Pixel Quest RPG</h1>
 
-<script type="module" src="./src/main.js"></script>
+<div id="ui">
 
+<div id="stats">
+Health: <span id="health"></span> |
+Gold: <span id="gold"></span> |
+Village Rep: <span id="rep"></span>
+</div>
+
+<canvas id="world" width="500" height="400"></canvas>
+
+<div id="minimap"></div>
+
+<div id="dialogueBox" class="panel hidden">
+<div id="dialogueText"></div>
+<div id="dialogueChoices"></div>
+</div>
+
+<div id="questLog" class="panel">
+<h3>Quest Log</h3>
+<div id="questList"></div>
+</div>
+
+<div class="controls">
+<button onclick="saveGame()">Save</button>
+<button onclick="loadGame()">Load</button>
+</div>
+
+</div>
+</div>
+
+<script src="script.js"></script>
 </body>
 </html>
