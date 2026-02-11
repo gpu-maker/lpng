@@ -1,19 +1,47 @@
-body{
-margin:0;
-background:#0b0b0b;
-color:#ddd;
-font-family:serif;
-}
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Pixel Quest RPG</title>
+<link rel="stylesheet" href="style.css">
+</head>
 
-canvas{display:block}
+<body>
 
-#inventory,#paperdoll,#skillTree{
-position:fixed;
-background:#111;
-border:2px solid #555;
-padding:10px;
-}
+<div id="game">
 
-#inventory{right:20px;bottom:20px;width:240px;height:300px}
-#paperdoll{left:20px;bottom:20px;width:180px;height:260px}
-#skillTree{top:20px;left:50%;transform:translateX(-50%)}
+<h1>Pixel Quest RPG</h1>
+
+<div id="ui">
+
+<div id="stats">
+Health: <span id="health"></span> |
+Gold: <span id="gold"></span> |
+Village Rep: <span id="rep"></span>
+</div>
+
+<canvas id="world" width="500" height="400"></canvas>
+
+<div id="minimap"></div>
+
+<div id="dialogueBox" class="panel hidden">
+<div id="dialogueText"></div>
+<div id="dialogueChoices"></div>
+</div>
+
+<div id="questLog" class="panel">
+<h3>Quest Log</h3>
+<div id="questList"></div>
+</div>
+
+<div class="controls">
+<button onclick="saveGame()">Save</button>
+<button onclick="loadGame()">Load</button>
+</div>
+
+</div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
