@@ -2,44 +2,45 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Pixel Quest RPG</title>
+<title>Pixel Diablo RPG</title>
 <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<div id="game">
+<h1>Pixel RPG</h1>
 
-<h1>Pixel Quest RPG</h1>
+<div id="stats"></div>
 
-<div id="ui">
+<canvas id="world" width="800" height="600"></canvas>
 
-<div id="stats">
-Health: <span id="health"></span> |
-Gold: <span id="gold"></span> |
-Village Rep: <span id="rep"></span>
+<div class="ui">
+
+<div class="panel">
+<h3>Inventory</h3>
+<div id="inventoryGrid"></div>
 </div>
 
-<canvas id="world" width="500" height="400"></canvas>
-
-<div id="minimap"></div>
-
-<div id="dialogueBox" class="panel hidden">
-<div id="dialogueText"></div>
-<div id="dialogueChoices"></div>
+<div class="panel">
+<h3>Equipment</h3>
+<div id="equipment"></div>
 </div>
 
-<div id="questLog" class="panel">
-<h3>Quest Log</h3>
-<div id="questList"></div>
+<div class="panel">
+<h3>Crafting</h3>
+<button onclick="craftPotion()">Craft Potion (2 Herbs)</button>
 </div>
 
-<div class="controls">
-<button onclick="saveGame()">Save</button>
-<button onclick="loadGame()">Load</button>
+<div class="panel">
+<h3>Editor Mode</h3>
+<button onclick="toggleEditor()">Toggle Tile Editor</button>
 </div>
 
+<div class="panel">
+<h3>Sound</h3>
+<button onclick="toggleMusic()">Music</button>
 </div>
+
 </div>
 
 <script src="script.js"></script>
