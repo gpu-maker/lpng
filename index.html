@@ -1,34 +1,18 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Silver Knight Roguelike</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<title>Roguelike Adventure</title>
+<link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<h1>⚔️ Silver Knight Roguelike</h1>
-
-<div id="hud">
-  <div id="stats"></div>
-  <canvas id="minimap" width="200" height="200"></canvas>
+<div id="gameContainer">
+  <canvas id="game"></canvas>
 </div>
-
-<canvas id="game"></canvas>
-
-<div id="controls">
-  ⬅⬆⬇➡ Move |
-  Z Melee |
-  X Bow |
-  C Spell |
-  E Interact |
-  💀 Death = Restart
-</div>
-
-<audio id="bgm" loop></audio>
-<audio id="sfxHit"></audio>
-<audio id="sfxPickup"></audio>
 
 <script src="script.js"></script>
+
 </body>
 </html>
