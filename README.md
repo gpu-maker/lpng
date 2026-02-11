@@ -1,42 +1,48 @@
-# Pixel Roguelike Engine
+# WebGL Roguelike RPG
 
-A production-scale browser roguelike built in pure JavaScript.
-
-Runs locally — no server required.
+Browser-based Diablo-style RPG engine built in JavaScript.
 
 ## Features
 
-- Procedural world generation
-- Biome system
-- Sprite animation engine
-- Particle effects
-- Lighting + shadow engine with torch flicker
+- Animated knight sprite system
+- 8-direction movement and attacks
+- ECS architecture
+- Behavior tree enemy AI
+- Procedural dungeon generation
+- Villages + biome world
 - Inventory + equipment system
-- Skill system ready
-- Enemy AI with pathfinding
-- Modular production architecture
-- Expandable to 5000+ lines
+- Shop + gold economy
+- Quest + dialogue system
+- Skill tree UI
+- Lighting and shadows
+- Fog-of-war minimap
+- Save/load system
+- WebGL renderer
+- Chrome/Safari compatible
 
 ## Controls
 
-WASD — Move  
-Arrow Keys — Attack  
-I — Inventory  
-K — Skill Tree  
+WASD - Move  
+SPACE - Attack  
+SHIFT - Bow  
+Q - Spell  
+I - Inventory  
+K - Skill Tree  
+E - Shop  
+1–5 - Potions  
+ESC - Pause  
 
 ## Run
 
-Open:
-
-index.html
-
-No installation required.
+Open `index.html` in Chrome or Safari.
 
 ## Project Structure
 
-## Roadmap
+- index.html → UI
+- style.css → Diablo UI theme
+- script.js → Game engine
+- assets → sprites and sounds
 
-- More biomes
-- Boss system
-- Equipment visuals
-- Sound engine
+## License
+
+MIT
