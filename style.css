@@ -1,42 +1,36 @@
 body{
 margin:0;
-background:#cfcfcf;
-font-family:Arial;
+background:#000;
+color:white;
+font-family:monospace;
 }
 
 #gameWrapper{
-position:relative;
 width:1000px;
 margin:auto;
+position:relative;
 }
 
 canvas{
-border:3px solid #222;
-background:#6c8c6c;
-}
-
-#hud{
-position:absolute;
-top:0;
-left:0;
-width:100%;
-height:100%;
-pointer-events:none;
+image-rendering:pixelated;
+background:#000;
+border:2px solid #555;
+display:block;
+margin:auto;
 }
 
 .panel{
-pointer-events:auto;
 position:absolute;
-background:#f4f4f4;
-border:3px solid #222;
+background:#111;
+border:2px solid #555;
 padding:10px;
-box-shadow:0 0 10px rgba(0,0,0,.3);
 }
 
 #statsPanel{top:10px;left:10px;width:150px;}
 #inventoryPanel{bottom:10px;left:10px;width:260px;}
 #skillPanel{top:10px;right:10px;width:300px;height:300px;}
 #questPanel{bottom:10px;right:10px;width:250px;}
+#reputationPanel{top:350px;left:10px;width:150px;}
 
 #inventoryGrid{
 display:grid;
@@ -47,11 +41,12 @@ gap:4px;
 .slot{
 width:50px;
 height:50px;
-border:2px solid #444;
-background:#ddd;
+border:1px solid #777;
+background:#222;
 }
 
 #abilityBar{
+position:absolute;
 bottom:10px;
 left:50%;
 transform:translateX(-50%);
@@ -62,22 +57,25 @@ gap:10px;
 .ability{
 width:60px;
 height:60px;
-background:#ddd;
-border:2px solid #222;
+background:#222;
+border:2px solid #555;
 }
 
 #controls{
 position:absolute;
-top:970px;
+bottom:5px;
 left:50%;
 transform:translateX(-50%);
-background:white;
+background:#111;
 padding:4px 10px;
-border:1px solid #222;
+border:1px solid #555;
 }
 
-#skillTree{
-width:280px;
-height:250px;
-background:#fff;
+#editorPanel{
+position:absolute;
+top:10px;
+left:180px;
+background:#111;
+border:2px solid #555;
+padding:10px;
 }
