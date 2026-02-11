@@ -1,43 +1,33 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
-  <title>Pixel Roguelike</title>
+  <title>Silver Knight Roguelike</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h1>🗡 Pixel Roguelike</h1>
+<h1>⚔️ Silver Knight Roguelike</h1>
 
-<div id="ui">
+<div id="hud">
   <div id="stats"></div>
-  <canvas id="minimap" width="160" height="160"></canvas>
+  <canvas id="minimap" width="200" height="200"></canvas>
 </div>
 
 <canvas id="game"></canvas>
 
-<div id="controlsHelp">
-  ⬆⬇⬅➡ Move |
+<div id="controls">
+  ⬅⬆⬇➡ Move |
   Z Melee |
-  X Ranged |
-  C Magic |
-  K Skills |
-  Save / Load
+  X Bow |
+  C Spell |
+  E Interact |
+  💀 Death = Restart
 </div>
 
-<div id="buttons">
-  <button onclick="saveGame()">💾 Save</button>
-  <button onclick="loadGame()">📂 Load</button>
-</div>
-
-<div id="skills" class="hidden">
-  <h3>Skill Tree</h3>
-  <button onclick="upgrade('atk')">🗡 Melee</button>
-  <button onclick="upgrade('ranged')">🏹 Ranged</button>
-  <button onclick="upgrade('magic')">🔮 Magic</button>
-  <p id="skillPoints"></p>
-  <button onclick="toggleSkills()">Close</button>
-</div>
+<audio id="bgm" loop></audio>
+<audio id="sfxHit"></audio>
+<audio id="sfxPickup"></audio>
 
 <script src="script.js"></script>
 </body>
