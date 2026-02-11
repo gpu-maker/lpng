@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Pixel Diablo RPG</title>
+<title>Pixel RPG Engine</title>
 <link rel="stylesheet" href="style.css">
 </head>
 
@@ -27,17 +27,19 @@
 </div>
 
 <div class="panel">
-<h3>Crafting</h3>
-<button onclick="craftPotion()">Craft Potion (2 Herbs)</button>
+<h3>Skill Tree</h3>
+<canvas id="skillTree" width="200" height="200"></canvas>
 </div>
 
 <div class="panel">
-<h3>Editor Mode</h3>
-<button onclick="toggleEditor()">Toggle Tile Editor</button>
+<h3>Quest Log</h3>
+<div id="quests"></div>
 </div>
 
 <div class="panel">
-<h3>Sound</h3>
+<button onclick="saveGame()">Save</button>
+<button onclick="loadGame()">Load</button>
+<button onclick="toggleEditor()">Editor</button>
 <button onclick="toggleMusic()">Music</button>
 </div>
 
