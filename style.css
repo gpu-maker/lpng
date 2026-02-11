@@ -7,20 +7,20 @@ text-align:center;
 
 canvas{
 background:black;
-border:3px solid #444;
+border:2px solid #444;
 }
 
 .ui{
 display:flex;
-justify-content:center;
-gap:20px;
 flex-wrap:wrap;
+gap:20px;
+justify-content:center;
 }
 
 .panel{
 background:#1a1a1a;
-border:2px solid #555;
 padding:10px;
+border:2px solid #555;
 width:200px;
 }
 
@@ -37,10 +37,7 @@ cursor:pointer;
 }
 
 .equipSlot{
-width:60px;
-height:60px;
 border:2px solid gold;
-margin:5px;
 }
 
 button{
@@ -48,5 +45,6 @@ background:#333;
 color:white;
 border:none;
 padding:6px;
+margin:2px;
 cursor:pointer;
 }
