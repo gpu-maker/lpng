@@ -2,42 +2,47 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>RPG</title>
+<title>Browser RPG</title>
 <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
+<div id="gameContainer">
+
+<canvas id="game" width="1000" height="1000"></canvas>
+
+<!-- HUD -->
 <div id="hud">
-  <div id="stats">
-    ❤️ <span id="hp">100</span>
-    💰 <span id="gold">0</span>
-    ⚡ <span id="mana">50</span>
-  </div>
-
-  <canvas id="game"></canvas>
-  <canvas id="minimap"></canvas>
+<div id="stats">
+❤️ <span id="hp">100</span>
+✨ <span id="mana">50</span>
+🪙 <span id="gold">0</span>
 </div>
 
-<!-- INVENTORY -->
-<div id="inventory" class="panel hidden">
-  <h3>Inventory</h3>
-  <div id="grid"></div>
+<div id="controls">
+WASD Move | SPACE Attack | F Spell | I Inventory | E Shop | K Skills | ESC Pause
+</div>
 </div>
 
-<!-- SHOP -->
-<div id="shop" class="panel hidden">
-  <h3>Shop</h3>
-  <div id="shopItems"></div>
+<!-- UI PANELS -->
+<div id="inventory" class="panel hidden"></div>
+<div id="shop" class="panel hidden"></div>
+<div id="skills" class="panel hidden"></div>
+
+<div id="pauseMenu" class="panel hidden">
+<h2>Paused</h2>
+<p>WASD → move</p>
+<p>SPACE → attack</p>
+<p>F → spell</p>
+<p>I → inventory</p>
+<p>E → shop</p>
+<p>K → skill tree</p>
+<p>ESC → resume</p>
 </div>
 
-<!-- SKILL TREE -->
-<div id="skills" class="panel hidden">
-  <h3>Skills</h3>
-  <div id="skillTree"></div>
 </div>
 
 <script src="script.js"></script>
-
 </body>
 </html>
